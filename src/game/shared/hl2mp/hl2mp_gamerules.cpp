@@ -71,106 +71,320 @@ static const char *s_pBattleRoyaleWinnerMessages[] =
 		"%s is the final survivor. Unfortunately, this is factual.",
 };
 
-static void SpawnBattleRoyaleWinnerCrates(
-	CBasePlayer *winner)
+static void SpawnBattleRoyaleWinnerPropBatch(
+    CBasePlayer *winner,
+    int propCount
+)
 {
-	if (!winner)
-	{
-		return;
-	}
+    if ( !winner || propCount <= 0 )
+    {
+        return;
+    }
 
-	const int propCount =
-		br_winner_crate_count.GetInt();
+    const float spread =
+        br_winner_crate_spread.GetFloat();
 
-	const float spread =
-		br_winner_crate_spread.GetFloat();
+    const float height =
+        br_winner_crate_height.GetFloat();
 
-	const float height =
-		br_winner_crate_height.GetFloat();
+    for ( int i = 0; i < propCount; i++ )
+    {
+        const int modelIndex =
+            random->RandomInt(
+                0,
+                ARRAYSIZE(
+                    s_pBattleRoyaleWinnerPropModels
+                ) - 1
+            );
 
-	for (int i = 0; i < propCount; i++)
-	{
-		const int modelIndex =
-			random->RandomInt(
-				0,
-				ARRAYSIZE(
-					s_pBattleRoyaleWinnerPropModels) -
-					1);
+        const char *modelName =
+            s_pBattleRoyaleWinnerPropModels[
+                modelIndex
+            ];
 
-		const char *modelName =
-			s_pBattleRoyaleWinnerPropModels[modelIndex];
+        Vector origin =
+            winner->WorldSpaceCenter();
 
-		Vector origin =
-			winner->WorldSpaceCenter();
+        origin.x +=
+            random->RandomFloat(
+                -spread,
+                spread
+            );
 
-		origin.x +=
-			random->RandomFloat(
-				-spread,
-				spread);
+        origin.y +=
+            random->RandomFloat(
+                -spread,
+                spread
+            );
 
-		origin.y +=
-			random->RandomFloat(
-				-spread,
-				spread);
+        origin.z +=
+            height +
+            random->RandomFloat(
+                0.0f,
+                height
+            );
 
-		origin.z +=
-			height +
-			random->RandomFloat(
-				0.0f,
-				height);
+        QAngle angles(
+            random->RandomFloat(
+                -180.0f,
+                180.0f
+            ),
+            random->RandomFloat(
+                -180.0f,
+                180.0f
+            ),
+            random->RandomFloat(
+                -180.0f,
+                180.0f
+            )
+        );
 
-		QAngle angles(
-			random->RandomFloat(
-				-180.0f,
-				180.0f),
-			random->RandomFloat(
-				-180.0f,
-				180.0f),
-			random->RandomFloat(
-				-180.0f,
-				180.0f));
+        CBaseEntity *prop =
+            CreateEntityByName(
+                "prop_physics_override"
+            );
 
-		CBaseEntity *prop =
-			CreateEntityByName(
-				"prop_physics_override");
+        if ( !prop )
+        {
+            Warning(
+                "[BR] Failed to create winner prop\n"
+            );
 
-		if (!prop)
-		{
-			Warning(
-				"[BR] Failed to create winner prop\n");
+            continue;
+        }
 
-			continue;
-		}
+        prop->KeyValue(
+            "model",
+            modelName
+        );
 
-		prop->KeyValue(
-			"model",
-			modelName);
+        prop->SetAbsOrigin(
+            origin
+        );
 
-		prop->SetAbsOrigin(
-			origin);
+        prop->SetAbsAngles(
+            angles
+        );
 
-		prop->SetAbsAngles(
-			angles);
+        DispatchSpawn(
+            prop
+        );
 
-		DispatchSpawn(
-			prop);
+        prop->Activate();
 
-		prop->Activate();
+        Vector velocity(
+            random->RandomFloat(
+                -80.0f,
+                80.0f
+            ),
+            random->RandomFloat(
+                -80.0f,
+                80.0f
+            ),
+            random->RandomFloat(
+                -40.0f,
+                20.0f
+            )
+        );
 
-		Vector velocity(
-			random->RandomFloat(
-				-80.0f,
-				80.0f),
-			random->RandomFloat(
-				-80.0f,
-				80.0f),
-			random->RandomFloat(
-				-40.0f,
-				20.0f));
+        prop->SetAbsVelocity(
+            velocity
+        );
+    }
+}
 
-		prop->SetAbsVelocity(
-			velocity);
-	}
+class CBattleRoyaleWinnerPropRain :
+    public CBaseEntity
+{
+public:
+    DECLARE_CLASS(
+        CBattleRoyaleWinnerPropRain,
+        CBaseEntity
+    );
+
+    DECLARE_DATADESC();
+
+    static void Start(
+        CBasePlayer *winner,
+        int propCount
+    );
+
+    void Spawn( void );
+    void RainThink( void );
+
+private:
+    EHANDLE m_hWinner;
+    int m_iPropsRemaining;
+};
+
+LINK_ENTITY_TO_CLASS(
+    br_winner_prop_rain,
+    CBattleRoyaleWinnerPropRain
+);
+
+BEGIN_DATADESC(
+    CBattleRoyaleWinnerPropRain
+)
+
+    DEFINE_FIELD(
+        m_hWinner,
+        FIELD_EHANDLE
+    ),
+
+    DEFINE_FIELD(
+        m_iPropsRemaining,
+        FIELD_INTEGER
+    ),
+
+    DEFINE_THINKFUNC(
+        RainThink
+    ),
+
+END_DATADESC()
+
+void CBattleRoyaleWinnerPropRain::Start(
+    CBasePlayer *winner,
+    int propCount
+)
+{
+    if ( !winner || propCount <= 0 )
+    {
+        return;
+    }
+
+    CBaseEntity *existing = NULL;
+
+    while (
+        (
+            existing =
+                gEntList.FindEntityByClassname(
+                    existing,
+                    "br_winner_prop_rain"
+                )
+        ) != NULL
+    )
+    {
+        UTIL_Remove(
+            existing
+        );
+    }
+
+    CBattleRoyaleWinnerPropRain *rain =
+        static_cast<
+            CBattleRoyaleWinnerPropRain *
+        >(
+            CreateEntityByName(
+                "br_winner_prop_rain"
+            )
+        );
+
+    if ( !rain )
+    {
+        Warning(
+            "[BR] Failed to create winner prop rain\n"
+        );
+
+        return;
+    }
+
+    rain->m_hWinner =
+        winner;
+
+    rain->m_iPropsRemaining =
+        propCount;
+
+    DispatchSpawn(
+        rain
+    );
+
+    rain->Activate();
+}
+
+void CBattleRoyaleWinnerPropRain::Spawn(
+    void
+)
+{
+    BaseClass::Spawn();
+
+    SetSolid(
+        SOLID_NONE
+    );
+
+    SetMoveType(
+        MOVETYPE_NONE
+    );
+
+    AddEffects(
+        EF_NODRAW
+    );
+
+    SetThink(
+        &CBattleRoyaleWinnerPropRain::RainThink
+    );
+
+    SetNextThink(
+        gpGlobals->curtime
+    );
+}
+
+void CBattleRoyaleWinnerPropRain::RainThink(
+    void
+)
+{
+    CBaseEntity *winnerEntity =
+        m_hWinner.Get();
+
+    CBasePlayer *winner =
+        winnerEntity
+            ? ToBasePlayer(
+                winnerEntity
+            )
+            : NULL;
+
+    if (
+        !winner ||
+        !winner->IsAlive() ||
+        m_iPropsRemaining <= 0
+    )
+    {
+        UTIL_Remove(
+            this
+        );
+
+        return;
+    }
+
+    const int batchSize =
+        MIN(
+            br_winner_prop_batch_size.GetInt(),
+            m_iPropsRemaining
+        );
+
+    winner->EmitSound(
+        "Weapon_PhysCannon.Launch"
+    );
+
+    SpawnBattleRoyaleWinnerPropBatch(
+        winner,
+        batchSize
+    );
+
+    m_iPropsRemaining -=
+        batchSize;
+
+    if ( m_iPropsRemaining <= 0 )
+    {
+        UTIL_Remove(
+            this
+        );
+
+        return;
+    }
+
+    SetNextThink(
+        gpGlobals->curtime +
+        br_winner_prop_batch_interval.GetFloat()
+    );
 }
 
 #endif
@@ -655,8 +869,19 @@ void CHL2MPRules::FinishBattleRoyaleRound(
 			winner->GetPlayerName(),
 			br_winner_crate_count.GetInt());
 
-		SpawnBattleRoyaleWinnerCrates(
-			winner);
+		CBattleRoyaleWinnerPropRain::Start(
+			winner,
+			br_winner_crate_count.GetInt()
+		);
+
+		winner->EmitSound(
+			"AlyxEmp.Charge"
+		);
+		
+		CBattleRoyaleWinnerPropRain::Start(
+			winner,
+			br_winner_crate_count.GetInt()
+		);
 
 		return;
 	}
@@ -1284,21 +1509,29 @@ float CHL2MPRules::GetMapRemainingTime()
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-void CHL2MPRules::Precache(void)
+void CHL2MPRules::Precache( void )
 {
-	CBaseEntity::PrecacheScriptSound(
-		"AlyxEmp.Charge");
+    CBaseEntity::PrecacheScriptSound(
+        "AlyxEmp.Charge"
+    );
+
+    CBaseEntity::PrecacheScriptSound(
+        "Weapon_PhysCannon.Launch"
+    );
 
 #ifndef CLIENT_DLL
-	for (
-		int i = 0;
-		i < ARRAYSIZE(
-				s_pBattleRoyaleWinnerPropModels);
-		i++)
-	{
-		CBaseEntity::PrecacheModel(
-			s_pBattleRoyaleWinnerPropModels[i]);
-	}
+    for (
+        int i = 0;
+        i < ARRAYSIZE(
+            s_pBattleRoyaleWinnerPropModels
+        );
+        i++
+    )
+    {
+        CBaseEntity::PrecacheModel(
+            s_pBattleRoyaleWinnerPropModels[i]
+        );
+    }
 #endif
 }
 

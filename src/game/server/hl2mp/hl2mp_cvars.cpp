@@ -339,3 +339,25 @@ CON_COMMAND_F(
         player
     );
 }
+
+ConVar br_winner_prop_batch_size(
+    "br_winner_prop_batch_size",
+    "100",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Number of winner props spawned per batch",
+    true,
+    1.0f,
+    true,
+    64.0f
+);
+
+ConVar br_winner_prop_batch_interval(
+    "br_winner_prop_batch_interval",
+    "0.5",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Interval between winner prop batches",
+    true,
+    0.05f,
+    true,
+    5.0f
+);

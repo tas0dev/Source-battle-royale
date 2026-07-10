@@ -26,4 +26,7 @@ extern ConVar br_winner_crate_count;
 extern ConVar br_winner_crate_spread;
 extern ConVar br_winner_crate_height;
 
+extern ConVar br_winner_prop_batch_size;
+extern ConVar br_winner_prop_batch_interval;
+
 #endif
