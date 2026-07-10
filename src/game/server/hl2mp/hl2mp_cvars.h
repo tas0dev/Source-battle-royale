@@ -22,4 +22,8 @@ extern ConVar br_countdown_time;
 extern ConVar br_round_time;
 extern ConVar br_restart_time;
 
+extern ConVar br_winner_crate_count;
+extern ConVar br_winner_crate_spread;
+extern ConVar br_winner_crate_height;
+
 #endif

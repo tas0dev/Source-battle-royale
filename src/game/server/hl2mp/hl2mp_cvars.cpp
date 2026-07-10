@@ -14,15 +14,13 @@ ConVar mp_readyrestart(
     "mp_readyrestart",
     "0",
     FCVAR_GAMEDLL,
-    "If non-zero, game will restart once each player gives the ready signal"
-);
+    "If non-zero, game will restart once each player gives the ready signal");
 
 ConVar mp_ready_signal(
     "mp_ready_signal",
     "ready",
     FCVAR_GAMEDLL,
-    "Text that each player must speak for the match to begin"
-);
+    "Text that each player must speak for the match to begin");
 
 ConVar br_min_players(
     "br_min_players",
@@ -32,8 +30,7 @@ ConVar br_min_players(
     true,
     1.0f,
     true,
-    static_cast<float>( MAX_PLAYERS )
-);
+    static_cast<float>(MAX_PLAYERS));
 
 ConVar br_countdown_time(
     "br_countdown_time",
@@ -43,8 +40,7 @@ ConVar br_countdown_time(
     true,
     1.0f,
     true,
-    60.0f
-);
+    60.0f);
 
 ConVar br_round_time(
     "br_round_time",
@@ -54,8 +50,7 @@ ConVar br_round_time(
     true,
     30.0f,
     true,
-    1800.0f
-);
+    1800.0f);
 
 ConVar br_restart_time(
     "br_restart_time",
@@ -65,22 +60,19 @@ ConVar br_restart_time(
     true,
     3.0f,
     true,
-    60.0f
-);
+    60.0f);
 
 CON_COMMAND_F(
     br_test_status,
     "Prints the current battle royale state",
-    FCVAR_GAMEDLL
-)
+    FCVAR_GAMEDLL)
 {
     CHL2MPRules *rules = HL2MPRules();
 
-    if ( !rules )
+    if (!rules)
     {
         Warning(
-            "[BR TEST] Game rules are unavailable\n"
-        );
+            "[BR TEST] Game rules are unavailable\n");
 
         return;
     }
@@ -92,47 +84,41 @@ CON_COMMAND_F(
 
     const int aliveCount =
         rules->GetBattleRoyaleAliveCount(
-            &lastAlive
-        );
+            &lastAlive);
 
     Msg(
         "[BR TEST] state=%s players=%d alive=%d",
         rules->GetBattleRoyaleStateName(),
         playerCount,
-        aliveCount
-    );
+        aliveCount);
 
-    if ( lastAlive )
+    if (lastAlive)
     {
         Msg(
             " last_alive=\"%s\"",
-            lastAlive->GetPlayerName()
-        );
+            lastAlive->GetPlayerName());
     }
 
-    Msg( "\n" );
+    Msg("\n");
 }
 
 CON_COMMAND_F(
     br_test_start,
     "Immediately starts a battle royale round",
-    FCVAR_GAMEDLL | FCVAR_CHEAT
-)
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
 {
     CHL2MPRules *rules = HL2MPRules();
 
-    if ( !rules )
+    if (!rules)
     {
         Warning(
-            "[BR TEST] Game rules are unavailable\n"
-        );
+            "[BR TEST] Game rules are unavailable\n");
 
         return;
     }
 
     Msg(
-        "[BR TEST] Forcing round start\n"
-    );
+        "[BR TEST] Forcing round start\n");
 
     rules->StartBattleRoyaleRound();
 }
@@ -140,46 +126,39 @@ CON_COMMAND_F(
 CON_COMMAND_F(
     br_test_finish,
     "Immediately finishes the current round",
-    FCVAR_GAMEDLL | FCVAR_CHEAT
-)
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
 {
     CHL2MPRules *rules = HL2MPRules();
 
-    if ( !rules )
+    if (!rules)
     {
         Warning(
-            "[BR TEST] Game rules are unavailable\n"
-        );
+            "[BR TEST] Game rules are unavailable\n");
 
         return;
     }
 
     Msg(
-        "[BR TEST] Forcing round finish\n"
-    );
+        "[BR TEST] Forcing round finish\n");
 
     rules->FinishBattleRoyaleRound(
-        NULL
-    );
+        NULL);
 }
 
 CON_COMMAND_F(
     br_test_eliminate,
     "Eliminates the command client",
-    FCVAR_GAMEDLL | FCVAR_CHEAT
-)
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
 {
     CHL2MP_Player *player =
         ToHL2MPPlayer(
-            UTIL_GetCommandClient()
-        );
+            UTIL_GetCommandClient());
 
-    if ( !player )
+    if (!player)
     {
         Warning(
             "[BR TEST] Run this command "
-            "from a listen-server client\n"
-        );
+            "from a listen-server client\n");
 
         return;
     }
@@ -188,32 +167,27 @@ CON_COMMAND_F(
 
     if (
         !rules ||
-        !rules->IsBattleRoyaleRoundActive()
-    )
+        !rules->IsBattleRoyaleRoundActive())
     {
         Warning(
-            "[BR TEST] No active round\n"
-        );
+            "[BR TEST] No active round\n");
 
         return;
     }
 
     if (
-        !player->IsBattleRoyaleParticipant()
-    )
+        !player->IsBattleRoyaleParticipant())
     {
         Warning(
             "[BR TEST] Player is not "
-            "a round participant\n"
-        );
+            "a round participant\n");
 
         return;
     }
 
     Msg(
         "[BR TEST] Eliminating %s\n",
-        player->GetPlayerName()
-    );
+        player->GetPlayerName());
 
     CBaseEntity *playerEntity = player;
 
@@ -221,17 +195,92 @@ CON_COMMAND_F(
         playerEntity,
         playerEntity,
         10000.0f,
-        DMG_GENERIC
-    );
+        DMG_GENERIC);
 
     player->TakeDamage(
-        damage
-    );
+        damage);
 }
 
 CON_COMMAND_F(
     br_test_late_join,
     "Simulates joining during an active round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
+{
+    CHL2MP_Player *player =
+        ToHL2MPPlayer(
+            UTIL_GetCommandClient());
+
+    if (!player)
+    {
+        Warning(
+            "[BR TEST] Run this command "
+            "from a listen-server client\n");
+
+        return;
+    }
+
+    player->SetBattleRoyaleParticipant(
+        false);
+
+    player->EnterBattleRoyaleObserver();
+
+    Msg(
+        "[BR TEST] %s moved to "
+        "late-join observer mode\n",
+        player->GetPlayerName());
+}
+
+CON_COMMAND_F(
+    br_test_reset,
+    "Resets the battle royale round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
+{
+    CHL2MPRules *rules = HL2MPRules();
+
+    if (!rules)
+    {
+        Warning(
+            "[BR TEST] Game rules are unavailable\n");
+
+        return;
+    }
+
+    rules->ResetBattleRoyaleRoundForTesting();
+}
+
+ConVar br_winner_crate_count(
+    "br_winner_crate_count",
+    "40",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Number of crates dropped on the winner",
+    true,
+    0.0f,
+    true,
+    128.0f);
+
+ConVar br_winner_crate_spread(
+    "br_winner_crate_spread",
+    "220",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Horizontal spread of winner crates",
+    true,
+    0.0f,
+    true,
+    1024.0f);
+
+ConVar br_winner_crate_height(
+    "br_winner_crate_height",
+    "160",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Minimum height of winner crates",
+    true,
+    64.0f,
+    true,
+    1024.0f);
+
+CON_COMMAND_F(
+    br_test_win,
+    "Makes the command client win immediately",
     FCVAR_GAMEDLL | FCVAR_CHEAT
 )
 {
@@ -250,26 +299,8 @@ CON_COMMAND_F(
         return;
     }
 
-    player->SetBattleRoyaleParticipant(
-        false
-    );
-
-    player->EnterBattleRoyaleObserver();
-
-    Msg(
-        "[BR TEST] %s moved to "
-        "late-join observer mode\n",
-        player->GetPlayerName()
-    );
-}
-
-CON_COMMAND_F(
-    br_test_reset,
-    "Resets the battle royale round",
-    FCVAR_GAMEDLL | FCVAR_CHEAT
-)
-{
-    CHL2MPRules *rules = HL2MPRules();
+    CHL2MPRules *rules =
+        HL2MPRules();
 
     if ( !rules )
     {
@@ -280,5 +311,31 @@ CON_COMMAND_F(
         return;
     }
 
-    rules->ResetBattleRoyaleRoundForTesting();
+    if (
+        player->GetTeamNumber() ==
+        TEAM_SPECTATOR
+    )
+    {
+        player->ChangeTeam(
+            TEAM_UNASSIGNED
+        );
+    }
+
+    if (
+        !rules->IsBattleRoyaleRoundActive() ||
+        !player->IsAlive() ||
+        !player->IsBattleRoyaleParticipant()
+    )
+    {
+        rules->StartBattleRoyaleRound();
+    }
+
+    Msg(
+        "[BR TEST] Forcing %s to win\n",
+        player->GetPlayerName()
+    );
+
+    rules->FinishBattleRoyaleRound(
+        player
+    );
 }
