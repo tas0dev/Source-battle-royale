@@ -513,3 +513,14 @@ ConVar br_zone_debug(
     "1",
     FCVAR_GAMEDLL | FCVAR_CHEAT,
     "Draws the battle royale zone boundary");
+
+ConVar br_zone_shrink_time(
+    "br_zone_shrink_time",
+    "15",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Time in seconds taken to shrink to the next zone radius",
+    true,
+    1.0f,
+    true,
+    120.0f
+);

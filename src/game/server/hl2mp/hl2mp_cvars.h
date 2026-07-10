@@ -38,5 +38,6 @@ extern ConVar br_zone_shrink_scale;
 extern ConVar br_zone_damage;
 extern ConVar br_zone_damage_interval;
 extern ConVar br_zone_debug;
+extern ConVar br_zone_shrink_time;
 
 #endif
