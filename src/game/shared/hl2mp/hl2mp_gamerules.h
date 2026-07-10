@@ -13,12 +13,13 @@
 #include "teamplay_gamerules.h"
 #include "gamevars_shared.h"
 
-#ifndef CLIENT_DLL
-#include "hl2mp_player.h"
-#endif
+class CHL2MP_Player;
 
-#define VEC_CROUCH_TRACE_MIN HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMin
-#define VEC_CROUCH_TRACE_MAX HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMax
+#define VEC_CROUCH_TRACE_MIN \
+    HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMin
+
+#define VEC_CROUCH_TRACE_MAX \
+    HL2MPRules()->GetHL2MPViewVectors()->m_vCrouchTraceMax
 
 enum
 {
@@ -42,7 +43,11 @@ enum BattleRoyaleRoundState
 class CHL2MPGameRulesProxy : public CGameRulesProxy
 {
 public:
-    DECLARE_CLASS( CHL2MPGameRulesProxy, CGameRulesProxy );
+    DECLARE_CLASS(
+        CHL2MPGameRulesProxy,
+        CGameRulesProxy
+    );
+
     DECLARE_NETWORKCLASS();
 };
 
@@ -50,32 +55,35 @@ class HL2MPViewVectors : public CViewVectors
 {
 public:
     HL2MPViewVectors(
-        Vector vView,
-        Vector vHullMin,
-        Vector vHullMax,
-        Vector vDuckHullMin,
-        Vector vDuckHullMax,
-        Vector vDuckView,
-        Vector vObsHullMin,
-        Vector vObsHullMax,
-        Vector vDeadViewHeight,
-        Vector vCrouchTraceMin,
-        Vector vCrouchTraceMax
+        Vector view,
+        Vector hullMinimum,
+        Vector hullMaximum,
+        Vector duckHullMinimum,
+        Vector duckHullMaximum,
+        Vector duckView,
+        Vector observerHullMinimum,
+        Vector observerHullMaximum,
+        Vector deadViewHeight,
+        Vector crouchTraceMinimum,
+        Vector crouchTraceMaximum
     ) :
         CViewVectors(
-            vView,
-            vHullMin,
-            vHullMax,
-            vDuckHullMin,
-            vDuckHullMax,
-            vDuckView,
-            vObsHullMin,
-            vObsHullMax,
-            vDeadViewHeight
+            view,
+            hullMinimum,
+            hullMaximum,
+            duckHullMinimum,
+            duckHullMaximum,
+            duckView,
+            observerHullMinimum,
+            observerHullMaximum,
+            deadViewHeight
         )
     {
-        m_vCrouchTraceMin = vCrouchTraceMin;
-        m_vCrouchTraceMax = vCrouchTraceMax;
+        m_vCrouchTraceMin =
+            crouchTraceMinimum;
+
+        m_vCrouchTraceMax =
+            crouchTraceMaximum;
     }
 
     Vector m_vCrouchTraceMin;
@@ -85,7 +93,10 @@ public:
 class CHL2MPRules : public CTeamplayRules
 {
 public:
-    DECLARE_CLASS( CHL2MPRules, CTeamplayRules );
+    DECLARE_CLASS(
+        CHL2MPRules,
+        CTeamplayRules
+    );
 
 #ifdef CLIENT_DLL
     DECLARE_CLIENTCLASS_NOBASE();
@@ -97,33 +108,75 @@ public:
     virtual ~CHL2MPRules();
 
     virtual void Precache( void );
-    virtual bool ShouldCollide( int collisionGroup0, int collisionGroup1 );
-    virtual bool ClientCommand( CBaseEntity *pEdict, const CCommand &args );
 
-    virtual float FlWeaponRespawnTime( CBaseCombatWeapon *pWeapon );
-    virtual float FlWeaponTryRespawn( CBaseCombatWeapon *pWeapon );
-    virtual Vector VecWeaponRespawnSpot( CBaseCombatWeapon *pWeapon );
-    virtual int WeaponShouldRespawn( CBaseCombatWeapon *pWeapon );
+    virtual bool ShouldCollide(
+        int collisionGroup0,
+        int collisionGroup1
+    );
+
+    virtual bool ClientCommand(
+        CBaseEntity *entity,
+        const CCommand &arguments
+    );
+
+    virtual float FlWeaponRespawnTime(
+        CBaseCombatWeapon *weapon
+    );
+
+    virtual float FlWeaponTryRespawn(
+        CBaseCombatWeapon *weapon
+    );
+
+    virtual Vector VecWeaponRespawnSpot(
+        CBaseCombatWeapon *weapon
+    );
+
+    virtual int WeaponShouldRespawn(
+        CBaseCombatWeapon *weapon
+    );
+
     virtual void Think( void );
     virtual void CreateStandardEntities( void );
-    virtual void ClientSettingsChanged( CBasePlayer *pPlayer );
-    virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget );
-    virtual void GoToIntermission( void );
-    virtual void DeathNotice(
-        CBasePlayer *pVictim,
-        const CTakeDamageInfo &info
-    );
-    virtual const char *GetGameDescription( void );
 
-    virtual const unsigned char *GetEncryptionKey( void )
+    virtual void ClientSettingsChanged(
+        CBasePlayer *player
+    );
+
+    virtual int PlayerRelationship(
+        CBaseEntity *player,
+        CBaseEntity *target
+    );
+
+    virtual void GoToIntermission( void );
+
+    virtual void DeathNotice(
+        CBasePlayer *victim,
+        const CTakeDamageInfo &information
+    );
+
+    virtual const char *GetGameDescription(
+        void
+    );
+
+    virtual const unsigned char *GetEncryptionKey(
+        void
+    )
     {
-        return reinterpret_cast<const unsigned char *>( "x9Ke0BY7" );
+        return reinterpret_cast<
+            const unsigned char *
+        >( "x9Ke0BY7" );
     }
 
-    virtual const CViewVectors *GetViewVectors() const;
-    const HL2MPViewVectors *GetHL2MPViewVectors() const;
+    virtual const CViewVectors *GetViewVectors(
+        void
+    ) const;
+
+    const HL2MPViewVectors *GetHL2MPViewVectors(
+        void
+    ) const;
 
     float GetMapRemainingTime();
+
     void CleanUpMap();
     void CheckRestartGame();
     void RestartGame();
@@ -131,55 +184,100 @@ public:
     void OnNavMeshLoad( void );
 
 #ifndef CLIENT_DLL
-    virtual Vector VecItemRespawnSpot( CItem *pItem );
-    virtual QAngle VecItemRespawnAngles( CItem *pItem );
-    virtual float FlItemRespawnTime( CItem *pItem );
-    virtual bool CanHavePlayerItem(
-        CBasePlayer *pPlayer,
-        CBaseCombatWeapon *pItem
+    virtual Vector VecItemRespawnSpot(
+        CItem *item
     );
-    virtual bool FShouldSwitchWeapon(
-        CBasePlayer *pPlayer,
-        CBaseCombatWeapon *pWeapon
-    );
-    virtual bool FPlayerCanRespawn( CBasePlayer *pPlayer );
 
-    void AddLevelDesignerPlacedObject( CBaseEntity *pEntity );
-    void RemoveLevelDesignerPlacedObject( CBaseEntity *pEntity );
+    virtual QAngle VecItemRespawnAngles(
+        CItem *item
+    );
+
+    virtual float FlItemRespawnTime(
+        CItem *item
+    );
+
+    virtual bool CanHavePlayerItem(
+        CBasePlayer *player,
+        CBaseCombatWeapon *item
+    );
+
+    virtual bool FShouldSwitchWeapon(
+        CBasePlayer *player,
+        CBaseCombatWeapon *weapon
+    );
+
+    virtual bool FPlayerCanRespawn(
+        CBasePlayer *player
+    );
+
+    void AddLevelDesignerPlacedObject(
+        CBaseEntity *entity
+    );
+
+    void RemoveLevelDesignerPlacedObject(
+        CBaseEntity *entity
+    );
+
     void ManageObjectRelocation( void );
+
     void CheckChatForReadySignal(
-        CHL2MP_Player *pPlayer,
-        const char *chatmsg
+        CHL2MP_Player *player,
+        const char *message
     );
+
     const char *GetChatFormat(
-        bool bTeamOnly,
-        CBasePlayer *pPlayer
+        bool teamOnly,
+        CBasePlayer *player
     );
+
+    bool IsBattleRoyaleRoundActive() const;
+    bool IsBattleRoyaleRoundLocked() const;
+
+    bool ShouldPlayerObserveBattleRoyale(
+        const CHL2MP_Player *player
+    ) const;
+
+    const char *GetBattleRoyaleStateName() const;
 
     void UpdateBattleRoyaleRound();
     void EnterBattleRoyaleWaiting();
     void StartBattleRoyaleCountdown();
     void StartBattleRoyaleRound();
-    void FinishBattleRoyaleRound( CBasePlayer *pWinner );
+
+    void FinishBattleRoyaleRound(
+        CBasePlayer *winner
+    );
+
+    void PrepareBattleRoyalePlayersForRound();
+    void PrepareBattleRoyalePlayersForWaiting();
+
+    void EnforceBattleRoyaleObservers();
 
     int GetBattleRoyalePlayerCount() const;
+
     int GetBattleRoyaleAliveCount(
-        CBasePlayer **ppLastAlive
+        CBasePlayer **lastAlive
     ) const;
 
-    void FreezeBattleRoyalePlayers( bool bFrozen );
+    void FreezeBattleRoyalePlayers(
+        bool frozen
+    );
+
+    void ResetBattleRoyaleRoundForTesting();
 #endif
 
     bool IsOfficialMap( void );
 
-    virtual void ClientDisconnected( edict_t *pClient );
+    virtual void ClientDisconnected(
+        edict_t *client
+    );
 
     bool CheckGameOver( void );
     bool IsIntermission( void );
 
     void PlayerKilled(
-        CBasePlayer *pVictim,
-        const CTakeDamageInfo &info
+        CBasePlayer *victim,
+        const CTakeDamageInfo &information
     );
 
     bool IsTeamplay( void )
@@ -190,14 +288,22 @@ public:
     void CheckAllPlayersReady( void );
 
     virtual bool IsConnectedUserInfoChangeAllowed(
-        CBasePlayer *pPlayer
+        CBasePlayer *player
     );
 
 private:
-    CNetworkVar( bool, m_bTeamPlayEnabled );
-    CNetworkVar( float, m_flGameStartTime );
+    CNetworkVar(
+        bool,
+        m_bTeamPlayEnabled
+    );
 
-    CUtlVector<EHANDLE> m_hRespawnableItemsAndWeapons;
+    CNetworkVar(
+        float,
+        m_flGameStartTime
+    );
+
+    CUtlVector<EHANDLE>
+        m_hRespawnableItemsAndWeapons;
 
     float m_tmNextPeriodicThink;
     float m_flRestartGameTime;
@@ -209,9 +315,12 @@ private:
 #ifndef CLIENT_DLL
     bool m_bChangelevelDone;
 
-    BattleRoyaleRoundState m_eBattleRoyaleState;
+    BattleRoyaleRoundState
+        m_eBattleRoyaleState;
+
     float m_flBattleRoyaleStateEndTime;
     float m_flBattleRoyaleRoundEndTime;
+
     int m_iBattleRoyaleStartingPlayers;
     int m_iLastBattleRoyaleCountdownSecond;
 #endif
@@ -219,7 +328,9 @@ private:
 
 inline CHL2MPRules *HL2MPRules()
 {
-    return static_cast<CHL2MPRules *>( g_pGameRules );
+    return static_cast<CHL2MPRules *>(
+        g_pGameRules
+    );
 }
 
 #endif

@@ -140,23 +140,23 @@ const char *g_ppszRandomCombineModels[] =
 
 #pragma warning( disable : 4355 )
 
-CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
+CHL2MP_Player::CHL2MP_Player() :
+    m_PlayerAnimState( this )
 {
-	m_angEyeAngles.Init();
+    m_angEyeAngles.Init();
 
-	m_iLastWeaponFireUsercmd = 0;
+    m_iLastWeaponFireUsercmd = 0;
 
-	m_flNextModelChangeTime = 0.0f;
-	m_flNextTeamChangeTime = 0.0f;
+    m_flNextModelChangeTime = 0.0f;
+    m_flNextTeamChangeTime = 0.0f;
 
-	m_iSpawnInterpCounter = 0;
+    m_iSpawnInterpCounter = 0;
 
     m_bEnterObserver = false;
-	m_bReady = false;
+    m_bReady = false;
+    m_bBattleRoyaleParticipant = false;
 
-	BaseClass::ChangeTeam( 0 );
-	
-	//UseClientSideAnimation();
+    BaseClass::ChangeTeam( 0 );
 }
 
 CHL2MP_Player::~CHL2MP_Player( void )
@@ -241,40 +241,17 @@ void CHL2MP_Player::GiveAllItems( void )
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
-	EquipSuit();
+    EquipSuit();
 
-	CBasePlayer::GiveAmmo( 255,	"Pistol");
-	CBasePlayer::GiveAmmo( 45,	"SMG1");
-	CBasePlayer::GiveAmmo( 1,	"grenade" );
-	CBasePlayer::GiveAmmo( 6,	"Buckshot");
-	CBasePlayer::GiveAmmo( 6,	"357" );
+    GiveNamedItem( "weapon_crowbar" );
 
-	if ( GetPlayerModelType() == PLAYER_SOUNDS_METROPOLICE || GetPlayerModelType() == PLAYER_SOUNDS_COMBINESOLDIER )
-	{
-		GiveNamedItem( "weapon_stunstick" );
-	}
-	else if ( GetPlayerModelType() == PLAYER_SOUNDS_CITIZEN )
-	{
-		GiveNamedItem( "weapon_crowbar" );
-	}
-	
-	GiveNamedItem( "weapon_pistol" );
-	GiveNamedItem( "weapon_smg1" );
-	GiveNamedItem( "weapon_frag" );
-	GiveNamedItem( "weapon_physcannon" );
+    CBaseCombatWeapon *crowbar =
+        Weapon_OwnsThisType( "weapon_crowbar" );
 
-	const char *szDefaultWeaponName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_defaultweapon" );
-
-	CBaseCombatWeapon *pDefaultWeapon = Weapon_OwnsThisType( szDefaultWeaponName );
-
-	if ( pDefaultWeapon )
-	{
-		Weapon_Switch( pDefaultWeapon );
-	}
-	else
-	{
-		Weapon_Switch( Weapon_OwnsThisType( "weapon_physcannon" ) );
-	}
+    if ( crowbar )
+    {
+        Weapon_Switch( crowbar );
+    }
 }
 
 void CHL2MP_Player::PickDefaultSpawnTeam( void )
@@ -330,52 +307,61 @@ void CHL2MP_Player::PickDefaultSpawnTeam( void )
 //-----------------------------------------------------------------------------
 // Purpose: Sets HL2 specific defaults.
 //-----------------------------------------------------------------------------
-void CHL2MP_Player::Spawn(void)
+void CHL2MP_Player::Spawn( void )
 {
-	m_flNextModelChangeTime = 0.0f;
-	m_flNextTeamChangeTime = 0.0f;
+    m_flNextModelChangeTime = 0.0f;
+    m_flNextTeamChangeTime = 0.0f;
 
-	PickDefaultSpawnTeam();
+    PickDefaultSpawnTeam();
 
-	BaseClass::Spawn();
-	
-	if ( !IsObserver() )
-	{
-		pl.deadflag = false;
-		RemoveSolidFlags( FSOLID_NOT_SOLID );
+    BaseClass::Spawn();
 
-		RemoveEffects( EF_NODRAW );
-		
-		GiveDefaultItems();
-	}
+    const bool shouldObserve =
+        HL2MPRules()->ShouldPlayerObserveBattleRoyale( this );
 
-	SetNumAnimOverlays( 3 );
-	ResetAnimation();
+    if ( !shouldObserve && !IsObserver() )
+    {
+        pl.deadflag = false;
 
-	m_nRenderFX = kRenderNormal;
+        RemoveSolidFlags( FSOLID_NOT_SOLID );
+        RemoveEffects( EF_NODRAW );
 
-	m_Local.m_iHideHUD = 0;
-	
-	AddFlag(FL_ONGROUND); // set the player on the ground at the start of the round.
+        GiveDefaultItems();
+    }
 
-	m_impactEnergyScale = HL2MPPLAYER_PHYSDAMAGE_SCALE;
+    SetNumAnimOverlays( 3 );
+    ResetAnimation();
 
-	if ( HL2MPRules()->IsIntermission() )
-	{
-		AddFlag( FL_FROZEN );
-	}
-	else
-	{
-		RemoveFlag( FL_FROZEN );
-	}
+    m_nRenderFX = kRenderNormal;
+    m_Local.m_iHideHUD = 0;
 
-	m_iSpawnInterpCounter = (m_iSpawnInterpCounter + 1) % 8;
+    AddFlag( FL_ONGROUND );
 
-	m_Local.m_bDucked = false;
+    m_impactEnergyScale =
+        HL2MPPLAYER_PHYSDAMAGE_SCALE;
 
-	SetPlayerUnderwater(false);
+    if ( HL2MPRules()->IsIntermission() )
+    {
+        AddFlag( FL_FROZEN );
+    }
+    else
+    {
+        RemoveFlag( FL_FROZEN );
+    }
 
-	m_bReady = false;
+    m_iSpawnInterpCounter =
+        ( m_iSpawnInterpCounter + 1 ) % 8;
+
+    m_Local.m_bDucked = false;
+
+    SetPlayerUnderwater( false );
+
+    m_bReady = false;
+
+    if ( shouldObserve )
+    {
+        EnterBattleRoyaleObserver();
+    }
 }
 
 bool CHL2MP_Player::ValidatePlayerModel( const char *pModel )
@@ -1296,50 +1282,75 @@ void CHL2MP_Player::DetonateTripmines( void )
 	EmitSound( "Weapon_SLAM.SatchelDetonate" );
 }
 
-void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
+void CHL2MP_Player::Event_Killed(
+    const CTakeDamageInfo &info
+)
 {
-	//update damage info with our accumulated physics force
-	CTakeDamageInfo subinfo = info;
-	subinfo.SetDamageForce( m_vecTotalBulletForce );
+    CTakeDamageInfo subinfo = info;
 
-	SetNumAnimOverlays( 0 );
+    subinfo.SetDamageForce(
+        m_vecTotalBulletForce
+    );
 
-	// Note: since we're dead, it won't draw us on the client, but we don't set EF_NODRAW
-	// because we still want to transmit to the clients in our PVS.
-	CreateRagdollEntity();
+    SetNumAnimOverlays( 0 );
 
-	DetonateTripmines();
+    CreateRagdollEntity();
+    DetonateTripmines();
 
-	BaseClass::Event_Killed( subinfo );
+    BaseClass::Event_Killed( subinfo );
 
-	if ( info.GetDamageType() & DMG_DISSOLVE )
-	{
-		if ( m_hRagdoll )
-		{
-			m_hRagdoll->GetBaseAnimating()->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
-		}
-	}
+    if ( info.GetDamageType() & DMG_DISSOLVE )
+    {
+        if ( m_hRagdoll )
+        {
+            m_hRagdoll
+                ->GetBaseAnimating()
+                ->Dissolve(
+                    NULL,
+                    gpGlobals->curtime,
+                    false,
+                    ENTITY_DISSOLVE_NORMAL
+                );
+        }
+    }
 
-	CBaseEntity *pAttacker = info.GetAttacker();
+    CBaseEntity *attacker = info.GetAttacker();
 
-	if ( pAttacker )
-	{
-		int iScoreToAdd = 1;
+    if ( attacker )
+    {
+        int score = 1;
 
-		if ( pAttacker == this )
-		{
-			iScoreToAdd = -1;
-		}
+        if ( attacker == this )
+        {
+            score = -1;
+        }
 
-		GetGlobalTeam( pAttacker->GetTeamNumber() )->AddScore( iScoreToAdd );
-	}
+        CTeam *team =
+            GetGlobalTeam(
+                attacker->GetTeamNumber()
+            );
 
-	FlashlightTurnOff();
+        if ( team )
+        {
+            team->AddScore( score );
+        }
+    }
 
-	m_lifeState = LIFE_DEAD;
+    FlashlightTurnOff();
 
-	RemoveEffects( EF_NODRAW );	// still draw player body
-	StopZooming();
+    m_lifeState = LIFE_DEAD;
+
+    RemoveEffects( EF_NODRAW );
+
+    StopZooming();
+
+    if (
+        HL2MPRules()->IsBattleRoyaleRoundActive() &&
+        IsBattleRoyaleParticipant()
+    )
+    {
+        EnterBattleRoyaleObserver();
+    }
 }
 
 int CHL2MP_Player::OnTakeDamage( const CTakeDamageInfo &inputInfo )
@@ -1744,4 +1755,45 @@ bool CHL2MP_Player::IsThreatFiringAtMe( CBaseEntity* threat ) const
 	}
 
 	return false;
+}
+
+void CHL2MP_Player::SetBattleRoyaleParticipant(
+    bool participant
+)
+{
+    m_bBattleRoyaleParticipant = participant;
+}
+
+bool CHL2MP_Player::IsBattleRoyaleParticipant() const
+{
+    return m_bBattleRoyaleParticipant;
+}
+
+void CHL2MP_Player::EnterBattleRoyaleObserver()
+{
+    if ( IsObserver() )
+    {
+        return;
+    }
+
+    RemoveAllItems( true );
+
+    m_lifeState = LIFE_DEAD;
+    pl.deadflag = true;
+
+    State_Transition( STATE_OBSERVER_MODE );
+}
+
+void CHL2MP_Player::LeaveBattleRoyaleObserver()
+{
+    if ( !IsObserver() )
+    {
+        return;
+    }
+
+    StopObserverMode();
+    State_Transition( STATE_ACTIVE );
+
+    m_lifeState = LIFE_ALIVE;
+    pl.deadflag = false;
 }

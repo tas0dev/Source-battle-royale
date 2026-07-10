@@ -93,6 +93,12 @@ public:
 	void GiveAllItems( void );
 	void GiveDefaultItems( void );
 
+	void SetBattleRoyaleParticipant( bool participant );
+	bool IsBattleRoyaleParticipant() const;
+	
+	void EnterBattleRoyaleObserver();
+	void LeaveBattleRoyaleObserver();
+
 	void NoteWeaponFired( void );
 
 	void ResetAnimation( void );
@@ -168,6 +174,8 @@ private:
 
     bool m_bEnterObserver;
 	bool m_bReady;
+
+	bool m_bBattleRoyaleParticipant;
 };
 
 inline CHL2MP_Player *ToHL2MPPlayer( CBaseEntity *pEntity )

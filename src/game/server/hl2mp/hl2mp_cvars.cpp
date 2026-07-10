@@ -7,6 +7,8 @@
 
 #include "cbase.h"
 #include "hl2mp_cvars.h"
+#include "hl2mp_gamerules.h"
+#include "hl2mp_player.h"
 
 ConVar mp_readyrestart(
     "mp_readyrestart",
@@ -65,3 +67,218 @@ ConVar br_restart_time(
     true,
     60.0f
 );
+
+CON_COMMAND_F(
+    br_test_status,
+    "Prints the current battle royale state",
+    FCVAR_GAMEDLL
+)
+{
+    CHL2MPRules *rules = HL2MPRules();
+
+    if ( !rules )
+    {
+        Warning(
+            "[BR TEST] Game rules are unavailable\n"
+        );
+
+        return;
+    }
+
+    CBasePlayer *lastAlive = NULL;
+
+    const int playerCount =
+        rules->GetBattleRoyalePlayerCount();
+
+    const int aliveCount =
+        rules->GetBattleRoyaleAliveCount(
+            &lastAlive
+        );
+
+    Msg(
+        "[BR TEST] state=%s players=%d alive=%d",
+        rules->GetBattleRoyaleStateName(),
+        playerCount,
+        aliveCount
+    );
+
+    if ( lastAlive )
+    {
+        Msg(
+            " last_alive=\"%s\"",
+            lastAlive->GetPlayerName()
+        );
+    }
+
+    Msg( "\n" );
+}
+
+CON_COMMAND_F(
+    br_test_start,
+    "Immediately starts a battle royale round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT
+)
+{
+    CHL2MPRules *rules = HL2MPRules();
+
+    if ( !rules )
+    {
+        Warning(
+            "[BR TEST] Game rules are unavailable\n"
+        );
+
+        return;
+    }
+
+    Msg(
+        "[BR TEST] Forcing round start\n"
+    );
+
+    rules->StartBattleRoyaleRound();
+}
+
+CON_COMMAND_F(
+    br_test_finish,
+    "Immediately finishes the current round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT
+)
+{
+    CHL2MPRules *rules = HL2MPRules();
+
+    if ( !rules )
+    {
+        Warning(
+            "[BR TEST] Game rules are unavailable\n"
+        );
+
+        return;
+    }
+
+    Msg(
+        "[BR TEST] Forcing round finish\n"
+    );
+
+    rules->FinishBattleRoyaleRound(
+        NULL
+    );
+}
+
+CON_COMMAND_F(
+    br_test_eliminate,
+    "Eliminates the command client",
+    FCVAR_GAMEDLL | FCVAR_CHEAT
+)
+{
+    CHL2MP_Player *player =
+        ToHL2MPPlayer(
+            UTIL_GetCommandClient()
+        );
+
+    if ( !player )
+    {
+        Warning(
+            "[BR TEST] Run this command "
+            "from a listen-server client\n"
+        );
+
+        return;
+    }
+
+    CHL2MPRules *rules = HL2MPRules();
+
+    if (
+        !rules ||
+        !rules->IsBattleRoyaleRoundActive()
+    )
+    {
+        Warning(
+            "[BR TEST] No active round\n"
+        );
+
+        return;
+    }
+
+    if (
+        !player->IsBattleRoyaleParticipant()
+    )
+    {
+        Warning(
+            "[BR TEST] Player is not "
+            "a round participant\n"
+        );
+
+        return;
+    }
+
+    Msg(
+        "[BR TEST] Eliminating %s\n",
+        player->GetPlayerName()
+    );
+
+    CBaseEntity *playerEntity = player;
+
+    CTakeDamageInfo damage(
+        playerEntity,
+        playerEntity,
+        10000.0f,
+        DMG_GENERIC
+    );
+
+    player->TakeDamage(
+        damage
+    );
+}
+
+CON_COMMAND_F(
+    br_test_late_join,
+    "Simulates joining during an active round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT
+)
+{
+    CHL2MP_Player *player =
+        ToHL2MPPlayer(
+            UTIL_GetCommandClient()
+        );
+
+    if ( !player )
+    {
+        Warning(
+            "[BR TEST] Run this command "
+            "from a listen-server client\n"
+        );
+
+        return;
+    }
+
+    player->SetBattleRoyaleParticipant(
+        false
+    );
+
+    player->EnterBattleRoyaleObserver();
+
+    Msg(
+        "[BR TEST] %s moved to "
+        "late-join observer mode\n",
+        player->GetPlayerName()
+    );
+}
+
+CON_COMMAND_F(
+    br_test_reset,
+    "Resets the battle royale round",
+    FCVAR_GAMEDLL | FCVAR_CHEAT
+)
+{
+    CHL2MPRules *rules = HL2MPRules();
+
+    if ( !rules )
+    {
+        Warning(
+            "[BR TEST] Game rules are unavailable\n"
+        );
+
+        return;
+    }
+
+    rules->ResetBattleRoyaleRoundForTesting();
+}
