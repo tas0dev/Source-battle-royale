@@ -184,6 +184,13 @@ public:
     void OnNavMeshLoad( void );
 
 #ifndef CLIENT_DLL
+    void StartBattleRoyaleZone();
+    void StopBattleRoyaleZone();
+    void AdvanceBattleRoyaleZone();
+    void PrintBattleRoyaleZoneStatus();
+#endif
+
+#ifndef CLIENT_DLL
     virtual Vector VecItemRespawnSpot(
         CItem *item
     );

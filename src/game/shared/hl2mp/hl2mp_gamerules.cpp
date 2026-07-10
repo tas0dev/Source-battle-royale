@@ -13,6 +13,7 @@
 
 #ifdef CLIENT_DLL
 #include "c_hl2mp_player.h"
+#include "debugoverlay_shared.h"
 #else
 
 #include "nav_mesh.h"
@@ -33,6 +34,7 @@
 #include "voice_gamemgr.h"
 #include "hl2mp_gameinterface.h"
 #include "hl2mp_cvars.h"
+#include "beam_shared.h"
 
 extern void respawn(CBaseEntity *pEdict, bool fCopyCorpse);
 
@@ -72,319 +74,264 @@ static const char *s_pBattleRoyaleWinnerMessages[] =
 };
 
 static void SpawnBattleRoyaleWinnerPropBatch(
-    CBasePlayer *winner,
-    int propCount
-)
+	CBasePlayer *winner,
+	int propCount)
 {
-    if ( !winner || propCount <= 0 )
-    {
-        return;
-    }
+	if (!winner || propCount <= 0)
+	{
+		return;
+	}
 
-    const float spread =
-        br_winner_crate_spread.GetFloat();
+	const float spread =
+		br_winner_crate_spread.GetFloat();
 
-    const float height =
-        br_winner_crate_height.GetFloat();
+	const float height =
+		br_winner_crate_height.GetFloat();
 
-    for ( int i = 0; i < propCount; i++ )
-    {
-        const int modelIndex =
-            random->RandomInt(
-                0,
-                ARRAYSIZE(
-                    s_pBattleRoyaleWinnerPropModels
-                ) - 1
-            );
+	for (int i = 0; i < propCount; i++)
+	{
+		const int modelIndex =
+			random->RandomInt(
+				0,
+				ARRAYSIZE(
+					s_pBattleRoyaleWinnerPropModels) -
+					1);
 
-        const char *modelName =
-            s_pBattleRoyaleWinnerPropModels[
-                modelIndex
-            ];
+		const char *modelName =
+			s_pBattleRoyaleWinnerPropModels[modelIndex];
 
-        Vector origin =
-            winner->WorldSpaceCenter();
+		Vector origin =
+			winner->WorldSpaceCenter();
 
-        origin.x +=
-            random->RandomFloat(
-                -spread,
-                spread
-            );
+		origin.x +=
+			random->RandomFloat(
+				-spread,
+				spread);
 
-        origin.y +=
-            random->RandomFloat(
-                -spread,
-                spread
-            );
+		origin.y +=
+			random->RandomFloat(
+				-spread,
+				spread);
 
-        origin.z +=
-            height +
-            random->RandomFloat(
-                0.0f,
-                height
-            );
+		origin.z +=
+			height +
+			random->RandomFloat(
+				0.0f,
+				height);
 
-        QAngle angles(
-            random->RandomFloat(
-                -180.0f,
-                180.0f
-            ),
-            random->RandomFloat(
-                -180.0f,
-                180.0f
-            ),
-            random->RandomFloat(
-                -180.0f,
-                180.0f
-            )
-        );
+		QAngle angles(
+			random->RandomFloat(
+				-180.0f,
+				180.0f),
+			random->RandomFloat(
+				-180.0f,
+				180.0f),
+			random->RandomFloat(
+				-180.0f,
+				180.0f));
 
-        CBaseEntity *prop =
-            CreateEntityByName(
-                "prop_physics_override"
-            );
+		CBaseEntity *prop =
+			CreateEntityByName(
+				"prop_physics_override");
 
-        if ( !prop )
-        {
-            Warning(
-                "[BR] Failed to create winner prop\n"
-            );
+		if (!prop)
+		{
+			Warning(
+				"[BR] Failed to create winner prop\n");
 
-            continue;
-        }
+			continue;
+		}
 
-        prop->KeyValue(
-            "model",
-            modelName
-        );
+		prop->KeyValue(
+			"model",
+			modelName);
 
-        prop->SetAbsOrigin(
-            origin
-        );
+		prop->SetAbsOrigin(
+			origin);
 
-        prop->SetAbsAngles(
-            angles
-        );
+		prop->SetAbsAngles(
+			angles);
 
-        DispatchSpawn(
-            prop
-        );
+		DispatchSpawn(
+			prop);
 
-        prop->Activate();
+		prop->Activate();
 
-        Vector velocity(
-            random->RandomFloat(
-                -80.0f,
-                80.0f
-            ),
-            random->RandomFloat(
-                -80.0f,
-                80.0f
-            ),
-            random->RandomFloat(
-                -40.0f,
-                20.0f
-            )
-        );
+		Vector velocity(
+			random->RandomFloat(
+				-80.0f,
+				80.0f),
+			random->RandomFloat(
+				-80.0f,
+				80.0f),
+			random->RandomFloat(
+				-40.0f,
+				20.0f));
 
-        prop->SetAbsVelocity(
-            velocity
-        );
-    }
+		prop->SetAbsVelocity(
+			velocity);
+	}
 }
 
-class CBattleRoyaleWinnerPropRain :
-    public CBaseEntity
+class CBattleRoyaleWinnerPropRain : public CBaseEntity
 {
 public:
-    DECLARE_CLASS(
-        CBattleRoyaleWinnerPropRain,
-        CBaseEntity
-    );
+	DECLARE_CLASS(
+		CBattleRoyaleWinnerPropRain,
+		CBaseEntity);
 
-    DECLARE_DATADESC();
+	DECLARE_DATADESC();
 
-    static void Start(
-        CBasePlayer *winner,
-        int propCount
-    );
+	static void Start(
+		CBasePlayer *winner,
+		int propCount);
 
-    void Spawn( void );
-    void RainThink( void );
+	void Spawn(void);
+	void RainThink(void);
 
 private:
-    EHANDLE m_hWinner;
-    int m_iPropsRemaining;
+	EHANDLE m_hWinner;
+	int m_iPropsRemaining;
 };
 
 LINK_ENTITY_TO_CLASS(
-    br_winner_prop_rain,
-    CBattleRoyaleWinnerPropRain
-);
+	br_winner_prop_rain,
+	CBattleRoyaleWinnerPropRain);
 
 BEGIN_DATADESC(
-    CBattleRoyaleWinnerPropRain
-)
+	CBattleRoyaleWinnerPropRain)
 
-    DEFINE_FIELD(
-        m_hWinner,
-        FIELD_EHANDLE
-    ),
+DEFINE_FIELD(
+	m_hWinner,
+	FIELD_EHANDLE),
 
-    DEFINE_FIELD(
-        m_iPropsRemaining,
-        FIELD_INTEGER
-    ),
+	DEFINE_FIELD(
+		m_iPropsRemaining,
+		FIELD_INTEGER),
 
-    DEFINE_THINKFUNC(
-        RainThink
-    ),
+	DEFINE_THINKFUNC(
+		RainThink),
 
-END_DATADESC()
+	END_DATADESC()
 
-void CBattleRoyaleWinnerPropRain::Start(
-    CBasePlayer *winner,
-    int propCount
-)
+		void CBattleRoyaleWinnerPropRain::Start(
+			CBasePlayer *winner,
+			int propCount)
 {
-    if ( !winner || propCount <= 0 )
-    {
-        return;
-    }
+	if (!winner || propCount <= 0)
+	{
+		return;
+	}
 
-    CBaseEntity *existing = NULL;
+	CBaseEntity *existing = NULL;
 
-    while (
-        (
-            existing =
-                gEntList.FindEntityByClassname(
-                    existing,
-                    "br_winner_prop_rain"
-                )
-        ) != NULL
-    )
-    {
-        UTIL_Remove(
-            existing
-        );
-    }
+	while (
+		(
+			existing =
+				gEntList.FindEntityByClassname(
+					existing,
+					"br_winner_prop_rain")) != NULL)
+	{
+		UTIL_Remove(
+			existing);
+	}
 
-    CBattleRoyaleWinnerPropRain *rain =
-        static_cast<
-            CBattleRoyaleWinnerPropRain *
-        >(
-            CreateEntityByName(
-                "br_winner_prop_rain"
-            )
-        );
+	CBattleRoyaleWinnerPropRain *rain =
+		static_cast<
+			CBattleRoyaleWinnerPropRain *>(
+			CreateEntityByName(
+				"br_winner_prop_rain"));
 
-    if ( !rain )
-    {
-        Warning(
-            "[BR] Failed to create winner prop rain\n"
-        );
+	if (!rain)
+	{
+		Warning(
+			"[BR] Failed to create winner prop rain\n");
 
-        return;
-    }
+		return;
+	}
 
-    rain->m_hWinner =
-        winner;
+	rain->m_hWinner =
+		winner;
 
-    rain->m_iPropsRemaining =
-        propCount;
+	rain->m_iPropsRemaining =
+		propCount;
 
-    DispatchSpawn(
-        rain
-    );
+	DispatchSpawn(
+		rain);
 
-    rain->Activate();
+	rain->Activate();
 }
 
 void CBattleRoyaleWinnerPropRain::Spawn(
-    void
-)
+	void)
 {
-    BaseClass::Spawn();
+	BaseClass::Spawn();
 
-    SetSolid(
-        SOLID_NONE
-    );
+	SetSolid(
+		SOLID_NONE);
 
-    SetMoveType(
-        MOVETYPE_NONE
-    );
+	SetMoveType(
+		MOVETYPE_NONE);
 
-    AddEffects(
-        EF_NODRAW
-    );
+	AddEffects(
+		EF_NODRAW);
 
-    SetThink(
-        &CBattleRoyaleWinnerPropRain::RainThink
-    );
+	SetThink(
+		&CBattleRoyaleWinnerPropRain::RainThink);
 
-    SetNextThink(
-        gpGlobals->curtime
-    );
+	SetNextThink(
+		gpGlobals->curtime);
 }
 
 void CBattleRoyaleWinnerPropRain::RainThink(
-    void
-)
+	void)
 {
-    CBaseEntity *winnerEntity =
-        m_hWinner.Get();
+	CBaseEntity *winnerEntity =
+		m_hWinner.Get();
 
-    CBasePlayer *winner =
-        winnerEntity
-            ? ToBasePlayer(
-                winnerEntity
-            )
-            : NULL;
+	CBasePlayer *winner =
+		winnerEntity
+			? ToBasePlayer(
+				  winnerEntity)
+			: NULL;
 
-    if (
-        !winner ||
-        !winner->IsAlive() ||
-        m_iPropsRemaining <= 0
-    )
-    {
-        UTIL_Remove(
-            this
-        );
+	if (
+		!winner ||
+		!winner->IsAlive() ||
+		m_iPropsRemaining <= 0)
+	{
+		UTIL_Remove(
+			this);
 
-        return;
-    }
+		return;
+	}
 
-    const int batchSize =
-        MIN(
-            br_winner_prop_batch_size.GetInt(),
-            m_iPropsRemaining
-        );
+	const int batchSize =
+		MIN(
+			br_winner_prop_batch_size.GetInt(),
+			m_iPropsRemaining);
 
-    winner->EmitSound(
-        "Weapon_PhysCannon.Launch"
-    );
+	winner->EmitSound(
+		"Weapon_PhysCannon.Launch");
 
-    SpawnBattleRoyaleWinnerPropBatch(
-        winner,
-        batchSize
-    );
+	SpawnBattleRoyaleWinnerPropBatch(
+		winner,
+		batchSize);
 
-    m_iPropsRemaining -=
-        batchSize;
+	m_iPropsRemaining -=
+		batchSize;
 
-    if ( m_iPropsRemaining <= 0 )
-    {
-        UTIL_Remove(
-            this
-        );
+	if (m_iPropsRemaining <= 0)
+	{
+		UTIL_Remove(
+			this);
 
-        return;
-    }
+		return;
+	}
 
-    SetNextThink(
-        gpGlobals->curtime +
-        br_winner_prop_batch_interval.GetFloat()
-    );
+	SetNextThink(
+		gpGlobals->curtime +
+		br_winner_prop_batch_interval.GetFloat());
 }
 
 #endif
@@ -768,6 +715,941 @@ void CHL2MPRules::EnterBattleRoyaleWaiting()
 	Msg("[BR] Waiting for players\n");
 }
 
+#ifndef CLIENT_DLL
+
+static const int BR_ZONE_BEAM_SEGMENTS =
+    24;
+
+static const float BR_ZONE_BEAM_HEIGHT =
+    768.0f;
+
+static const float
+s_flBattleRoyaleZoneBeamLevels[] =
+{
+    16.0f,
+    384.0f,
+    752.0f,
+};
+
+static const char
+BR_ZONE_BEAM_MATERIAL[] =
+    "sprites/lgtning.vmt";
+
+class CBattleRoyaleZoneController :
+    public CBaseEntity
+{
+public:
+    DECLARE_CLASS(
+        CBattleRoyaleZoneController,
+        CBaseEntity
+    );
+
+    DECLARE_DATADESC();
+
+    static CBattleRoyaleZoneController *
+    CreateController(
+        const Vector &center
+    );
+
+    void Spawn( void );
+    void UpdateOnRemove( void );
+    void ZoneThink( void );
+    void AdvancePhase( void );
+    void PrintStatus( void ) const;
+
+private:
+    void ApplyZoneDamage( void );
+
+    CBeam *CreateBoundaryBeam(
+        void
+    );
+
+    void CreateBoundaryBeams(
+        void
+    );
+
+    void UpdateBoundaryBeams(
+        void
+    );
+
+    void RemoveBoundaryBeams(
+        void
+    );
+
+    int m_iPhase;
+    float m_flRadius;
+    float m_flNextPhaseTime;
+    float m_flNextDamageTime;
+
+    CUtlVector<EHANDLE>
+        m_hBoundaryBeams;
+};
+
+LINK_ENTITY_TO_CLASS(
+    br_zone_controller,
+    CBattleRoyaleZoneController
+);
+
+BEGIN_DATADESC(
+    CBattleRoyaleZoneController
+)
+
+    DEFINE_FIELD(
+        m_iPhase,
+        FIELD_INTEGER
+    ),
+
+    DEFINE_FIELD(
+        m_flRadius,
+        FIELD_FLOAT
+    ),
+
+    DEFINE_FIELD(
+        m_flNextPhaseTime,
+        FIELD_TIME
+    ),
+
+    DEFINE_FIELD(
+        m_flNextDamageTime,
+        FIELD_TIME
+    ),
+
+    DEFINE_THINKFUNC(
+        ZoneThink
+    ),
+	
+END_DATADESC()
+
+static CBattleRoyaleZoneController *
+FindBattleRoyaleZoneController()
+{
+    CBaseEntity *entity =
+        gEntList.FindEntityByClassname(
+            NULL,
+            "br_zone_controller"
+        );
+
+    if ( !entity )
+    {
+        return NULL;
+    }
+
+    return static_cast<
+        CBattleRoyaleZoneController *
+    >(
+        entity
+    );
+}
+
+static Vector
+CalculateBattleRoyaleZoneCenter()
+{
+    Vector center =
+        vec3_origin;
+
+    int participantCount =
+        0;
+
+    for (
+        int i = 1;
+        i <= gpGlobals->maxClients;
+        i++
+    )
+    {
+        CHL2MP_Player *player =
+            ToHL2MPPlayer(
+                UTIL_PlayerByIndex(
+                    i
+                )
+            );
+
+        if ( !player )
+        {
+            continue;
+        }
+
+        if ( !player->IsAlive() )
+        {
+            continue;
+        }
+
+        if (
+            !player->IsBattleRoyaleParticipant()
+        )
+        {
+            continue;
+        }
+
+        center +=
+            player->GetAbsOrigin();
+
+        participantCount++;
+    }
+
+    if ( participantCount > 0 )
+    {
+        center /=
+            static_cast<float>(
+                participantCount
+            );
+
+        return center;
+    }
+
+    for (
+        int i = 1;
+        i <= gpGlobals->maxClients;
+        i++
+    )
+    {
+        CBasePlayer *player =
+            UTIL_PlayerByIndex(
+                i
+            );
+
+        if ( !player )
+        {
+            continue;
+        }
+
+        center +=
+            player->GetAbsOrigin();
+
+        participantCount++;
+    }
+
+    if ( participantCount > 0 )
+    {
+        center /=
+            static_cast<float>(
+                participantCount
+            );
+    }
+
+    return center;
+}
+
+CBeam *
+CBattleRoyaleZoneController::CreateBoundaryBeam(
+    void
+)
+{
+    CBeam *beam =
+        CBeam::BeamCreate(
+            BR_ZONE_BEAM_MATERIAL,
+            8.0f
+        );
+
+    if ( !beam )
+    {
+        Warning(
+            "[BR ZONE] Failed to create boundary beam\n"
+        );
+
+        return NULL;
+    }
+
+    beam->PointsInit(
+        GetAbsOrigin(),
+        GetAbsOrigin()
+    );
+
+    beam->SetColor(
+        64,
+        160,
+        255
+    );
+
+    beam->SetBrightness(
+        220
+    );
+
+    beam->SetWidth(
+        8.0f
+    );
+
+    beam->SetEndWidth(
+        8.0f
+    );
+
+    beam->SetNoise(
+        3.0f
+    );
+
+    beam->SetScrollRate(
+        18
+    );
+
+    beam->SetOwnerEntity(
+        this
+    );
+
+    return beam;
+}
+
+void
+CBattleRoyaleZoneController::CreateBoundaryBeams(
+    void
+)
+{
+    RemoveBoundaryBeams();
+
+    const int horizontalLevelCount =
+        ARRAYSIZE(
+            s_flBattleRoyaleZoneBeamLevels
+        );
+
+    const int beamCount =
+        BR_ZONE_BEAM_SEGMENTS +
+        (
+            BR_ZONE_BEAM_SEGMENTS *
+            horizontalLevelCount
+        );
+
+    for (
+        int i = 0;
+        i < beamCount;
+        i++
+    )
+    {
+        CBeam *beam =
+            CreateBoundaryBeam();
+
+        if ( !beam )
+        {
+            continue;
+        }
+
+        m_hBoundaryBeams.AddToTail(
+            beam
+        );
+    }
+
+    UpdateBoundaryBeams();
+}
+
+void
+CBattleRoyaleZoneController::UpdateBoundaryBeams(
+    void
+)
+{
+    const int horizontalLevelCount =
+        ARRAYSIZE(
+            s_flBattleRoyaleZoneBeamLevels
+        );
+
+    const int expectedBeamCount =
+        BR_ZONE_BEAM_SEGMENTS +
+        (
+            BR_ZONE_BEAM_SEGMENTS *
+            horizontalLevelCount
+        );
+
+    if (
+        m_hBoundaryBeams.Count() !=
+        expectedBeamCount
+    )
+    {
+        Warning(
+            "[BR ZONE] Expected %d beams, found %d\n",
+            expectedBeamCount,
+            m_hBoundaryBeams.Count()
+        );
+
+        return;
+    }
+
+    const Vector center =
+        GetAbsOrigin();
+
+    const float fullCircle =
+        6.28318530717958647692f;
+
+    for (
+        int i = 0;
+        i < BR_ZONE_BEAM_SEGMENTS;
+        i++
+    )
+    {
+        const float startAngle =
+            fullCircle *
+            static_cast<float>( i ) /
+            static_cast<float>(
+                BR_ZONE_BEAM_SEGMENTS
+            );
+
+        const float endAngle =
+            fullCircle *
+            static_cast<float>(
+                i + 1
+            ) /
+            static_cast<float>(
+                BR_ZONE_BEAM_SEGMENTS
+            );
+
+        Vector bottomStart(
+            center.x +
+                cosf( startAngle ) *
+                m_flRadius,
+            center.y +
+                sinf( startAngle ) *
+                m_flRadius,
+            center.z
+        );
+
+        Vector bottomEnd(
+            center.x +
+                cosf( endAngle ) *
+                m_flRadius,
+            center.y +
+                sinf( endAngle ) *
+                m_flRadius,
+            center.z
+        );
+
+        Vector topStart =
+            bottomStart;
+
+        topStart.z +=
+            BR_ZONE_BEAM_HEIGHT;
+
+        CBaseEntity *verticalEntity =
+            m_hBoundaryBeams[i].Get();
+
+        if ( verticalEntity )
+        {
+            CBeam *verticalBeam =
+                static_cast<CBeam *>(
+                    verticalEntity
+                );
+
+            verticalBeam->SetAbsStartPos(
+                bottomStart
+            );
+
+            verticalBeam->SetAbsEndPos(
+                topStart
+            );
+
+            verticalBeam->RelinkBeam();
+        }
+
+        for (
+            int level = 0;
+            level < horizontalLevelCount;
+            level++
+        )
+        {
+            const int beamIndex =
+                BR_ZONE_BEAM_SEGMENTS +
+                (
+                    level *
+                    BR_ZONE_BEAM_SEGMENTS
+                ) +
+                i;
+
+            CBaseEntity *horizontalEntity =
+                m_hBoundaryBeams[
+                    beamIndex
+                ].Get();
+
+            if ( !horizontalEntity )
+            {
+                continue;
+            }
+
+            CBeam *horizontalBeam =
+                static_cast<CBeam *>(
+                    horizontalEntity
+                );
+
+            Vector levelStart =
+                bottomStart;
+
+            Vector levelEnd =
+                bottomEnd;
+
+            levelStart.z +=
+                s_flBattleRoyaleZoneBeamLevels[
+                    level
+                ];
+
+            levelEnd.z +=
+                s_flBattleRoyaleZoneBeamLevels[
+                    level
+                ];
+
+            horizontalBeam->SetAbsStartPos(
+                levelStart
+            );
+
+            horizontalBeam->SetAbsEndPos(
+                levelEnd
+            );
+
+            horizontalBeam->RelinkBeam();
+        }
+    }
+}
+
+void
+CBattleRoyaleZoneController::RemoveBoundaryBeams(
+    void
+)
+{
+    for (
+        int i = 0;
+        i < m_hBoundaryBeams.Count();
+        i++
+    )
+    {
+        CBaseEntity *beam =
+            m_hBoundaryBeams[i].Get();
+
+        if ( beam )
+        {
+            UTIL_Remove(
+                beam
+            );
+        }
+    }
+
+    m_hBoundaryBeams.RemoveAll();
+}
+
+CBattleRoyaleZoneController *
+CBattleRoyaleZoneController::CreateController(
+    const Vector &center
+)
+{
+    CBattleRoyaleZoneController *controller =
+        static_cast<
+            CBattleRoyaleZoneController *
+        >(
+            CreateEntityByName(
+                "br_zone_controller"
+            )
+        );
+
+    if ( !controller )
+    {
+        Warning(
+            "[BR ZONE] Failed to create controller\n"
+        );
+
+        return NULL;
+    }
+
+    controller->SetAbsOrigin(
+        center
+    );
+
+    controller->m_iPhase =
+        0;
+
+    controller->m_flRadius =
+        br_zone_initial_radius.GetFloat();
+
+    controller->m_flNextPhaseTime =
+        gpGlobals->curtime +
+        br_zone_phase_time.GetFloat();
+
+    controller->m_flNextDamageTime =
+        gpGlobals->curtime +
+        br_zone_damage_interval.GetFloat();
+
+    DispatchSpawn(
+        controller
+    );
+
+    controller->Activate();
+
+    return controller;
+}
+
+void
+CBattleRoyaleZoneController::ApplyZoneDamage(
+    void
+)
+{
+    const float radiusSquared =
+        m_flRadius *
+        m_flRadius;
+
+    const Vector center =
+        GetAbsOrigin();
+
+    for (
+        int i = 1;
+        i <= gpGlobals->maxClients;
+        i++
+    )
+    {
+        CHL2MP_Player *player =
+            ToHL2MPPlayer(
+                UTIL_PlayerByIndex(
+                    i
+                )
+            );
+
+        if ( !player )
+        {
+            continue;
+        }
+
+        if ( !player->IsAlive() )
+        {
+            continue;
+        }
+
+        if (
+            !player->IsBattleRoyaleParticipant()
+        )
+        {
+            continue;
+        }
+
+        Vector offset =
+            player->GetAbsOrigin() -
+            center;
+
+        offset.z =
+            0.0f;
+
+        if (
+            offset.LengthSqr() <=
+            radiusSquared
+        )
+        {
+            continue;
+        }
+
+        CTakeDamageInfo damageInfo(
+            this,
+            this,
+            br_zone_damage.GetFloat(),
+            DMG_GENERIC
+        );
+
+        damageInfo.SetDamagePosition(
+            player->WorldSpaceCenter()
+        );
+
+        player->TakeDamage(
+            damageInfo
+        );
+
+        ClientPrint(
+            player,
+            HUD_PRINTCENTER,
+            "[CONTAINMENT] RETURN TO ACCEPTABLE AREA"
+        );
+    }
+}
+
+void
+CBattleRoyaleZoneController::AdvancePhase(
+    void
+)
+{
+    const int phaseCount =
+        br_zone_phase_count.GetInt();
+
+    if (
+        m_iPhase >=
+        phaseCount - 1
+    )
+    {
+        m_flRadius =
+            br_zone_min_radius.GetFloat();
+
+        m_flNextPhaseTime =
+            0.0f;
+
+        UpdateBoundaryBeams();
+
+        Msg(
+            "[BR ZONE] Already at final phase\n"
+        );
+
+        return;
+    }
+
+    m_iPhase++;
+
+    if (
+        m_iPhase >=
+        phaseCount - 1
+    )
+    {
+        m_flRadius =
+            br_zone_min_radius.GetFloat();
+
+        m_flNextPhaseTime =
+            0.0f;
+    }
+    else
+    {
+        m_flRadius =
+            MAX(
+                br_zone_min_radius.GetFloat(),
+                m_flRadius *
+                    br_zone_shrink_scale.GetFloat()
+            );
+
+        m_flNextPhaseTime =
+            gpGlobals->curtime +
+            br_zone_phase_time.GetFloat();
+    }
+
+    UpdateBoundaryBeams();
+
+    UTIL_ClientPrintAll(
+        HUD_PRINTCENTER,
+        "[CONTAINMENT] Acceptable area has been reduced."
+    );
+
+    UTIL_ClientPrintAll(
+        HUD_PRINTTALK,
+        "[CONTAINMENT] Please relocate immediately."
+    );
+
+    EmitSound(
+        "AlyxEmp.Charge"
+    );
+
+    Msg(
+        "[BR ZONE] phase=%d radius=%.1f\n",
+        m_iPhase,
+        m_flRadius
+    );
+}
+
+void
+CBattleRoyaleZoneController::PrintStatus(
+    void
+) const
+{
+    float phaseRemaining =
+        0.0f;
+
+    if ( m_flNextPhaseTime > 0.0f )
+    {
+        phaseRemaining =
+            MAX(
+                0.0f,
+                m_flNextPhaseTime -
+                    gpGlobals->curtime
+            );
+    }
+
+    const Vector center =
+        GetAbsOrigin();
+
+    Msg(
+        "[BR ZONE] "
+        "phase=%d "
+        "radius=%.1f "
+        "center=(%.1f %.1f %.1f) "
+        "next_phase=%.1f "
+        "beams=%d\n",
+        m_iPhase,
+        m_flRadius,
+        center.x,
+        center.y,
+        center.z,
+        phaseRemaining,
+        m_hBoundaryBeams.Count()
+    );
+}
+
+void CBattleRoyaleZoneController::Spawn(
+    void
+)
+{
+    BaseClass::Spawn();
+
+    SetSolid(
+        SOLID_NONE
+    );
+
+    SetMoveType(
+        MOVETYPE_NONE
+    );
+
+    AddEffects(
+        EF_NODRAW
+    );
+
+    SetThink(
+        &CBattleRoyaleZoneController::ZoneThink
+    );
+
+    SetNextThink(
+        gpGlobals->curtime
+    );
+
+    CreateBoundaryBeams();
+}
+
+void CBattleRoyaleZoneController::UpdateOnRemove(
+    void
+)
+{
+    RemoveBoundaryBeams();
+
+    BaseClass::UpdateOnRemove();
+}
+
+void CBattleRoyaleZoneController::ZoneThink(
+    void
+)
+{
+    CHL2MPRules *rules =
+        HL2MPRules();
+
+    if (
+        !br_zone_enabled.GetBool() ||
+        !rules ||
+        !rules->IsBattleRoyaleRoundActive()
+    )
+    {
+        UTIL_Remove(
+            this
+        );
+
+        return;
+    }
+
+    if (
+        gpGlobals->curtime >=
+        m_flNextDamageTime
+    )
+    {
+        ApplyZoneDamage();
+
+        m_flNextDamageTime =
+            gpGlobals->curtime +
+            br_zone_damage_interval.GetFloat();
+    }
+
+    if (
+        m_flNextPhaseTime > 0.0f &&
+        gpGlobals->curtime >=
+            m_flNextPhaseTime
+    )
+    {
+        AdvancePhase();
+    }
+
+    SetNextThink(
+        gpGlobals->curtime +
+        0.1f
+    );
+}
+
+void CHL2MPRules::StartBattleRoyaleZone()
+{
+    StopBattleRoyaleZone();
+
+    if ( !br_zone_enabled.GetBool() )
+    {
+        Msg(
+            "[BR ZONE] Zone is disabled\n"
+        );
+
+        return;
+    }
+
+    const Vector center =
+        CalculateBattleRoyaleZoneCenter();
+
+    CBattleRoyaleZoneController *controller =
+        CBattleRoyaleZoneController::CreateController(
+            center
+        );
+
+    if ( !controller )
+    {
+        Warning(
+            "[BR ZONE] Failed to start zone\n"
+        );
+
+        return;
+    }
+
+    UTIL_ClientPrintAll(
+        HUD_PRINTTALK,
+        "[CONTAINMENT] Acceptable area established."
+    );
+
+    Msg(
+        "[BR ZONE] Started at "
+        "(%.1f %.1f %.1f), radius=%.1f\n",
+        center.x,
+        center.y,
+        center.z,
+        br_zone_initial_radius.GetFloat()
+    );
+}
+
+void CHL2MPRules::StopBattleRoyaleZone()
+{
+    CBaseEntity *entity =
+        NULL;
+
+    while (
+        (
+            entity =
+                gEntList.FindEntityByClassname(
+                    entity,
+                    "br_zone_controller"
+                )
+        ) != NULL
+    )
+    {
+        UTIL_Remove(
+            entity
+        );
+    }
+}
+
+void CHL2MPRules::AdvanceBattleRoyaleZone()
+{
+    CBattleRoyaleZoneController *controller =
+        FindBattleRoyaleZoneController();
+
+    if ( !controller )
+    {
+        Warning(
+            "[BR ZONE] Zone is not active\n"
+        );
+
+        return;
+    }
+
+    controller->AdvancePhase();
+}
+
+void CHL2MPRules::PrintBattleRoyaleZoneStatus()
+{
+    CBattleRoyaleZoneController *controller =
+        FindBattleRoyaleZoneController();
+
+    if ( !controller )
+    {
+        Msg(
+            "[BR ZONE] inactive\n"
+        );
+
+        return;
+    }
+
+    controller->PrintStatus();
+}
+
+#endif
+
 void CHL2MPRules::StartBattleRoyaleCountdown()
 {
 	m_eBattleRoyaleState = BR_ROUND_COUNTDOWN;
@@ -811,6 +1693,8 @@ void CHL2MPRules::StartBattleRoyaleRound()
 		HUD_PRINTCENTER,
 		"Battle started");
 
+	StartBattleRoyaleZone();
+
 	Msg(
 		"[BR] Round started with %d player(s)\n",
 		m_iBattleRoyaleStartingPlayers);
@@ -819,6 +1703,13 @@ void CHL2MPRules::StartBattleRoyaleRound()
 void CHL2MPRules::FinishBattleRoyaleRound(
 	CBasePlayer *winner)
 {
+	if (m_eBattleRoyaleState == BR_ROUND_FINISHED)
+	{
+		return;
+	}
+
+	StopBattleRoyaleZone();
+
 	m_eBattleRoyaleState =
 		BR_ROUND_FINISHED;
 
@@ -869,19 +1760,12 @@ void CHL2MPRules::FinishBattleRoyaleRound(
 			winner->GetPlayerName(),
 			br_winner_crate_count.GetInt());
 
-		CBattleRoyaleWinnerPropRain::Start(
-			winner,
-			br_winner_crate_count.GetInt()
-		);
-
 		winner->EmitSound(
-			"AlyxEmp.Charge"
-		);
-		
+			"AlyxEmp.Charge");
+
 		CBattleRoyaleWinnerPropRain::Start(
 			winner,
-			br_winner_crate_count.GetInt()
-		);
+			br_winner_crate_count.GetInt());
 
 		return;
 	}
@@ -1509,29 +2393,24 @@ float CHL2MPRules::GetMapRemainingTime()
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-void CHL2MPRules::Precache( void )
+void CHL2MPRules::Precache(void)
 {
-    CBaseEntity::PrecacheScriptSound(
-        "AlyxEmp.Charge"
-    );
+	CBaseEntity::PrecacheScriptSound(
+		"AlyxEmp.Charge");
 
-    CBaseEntity::PrecacheScriptSound(
-        "Weapon_PhysCannon.Launch"
-    );
+	CBaseEntity::PrecacheScriptSound(
+		"Weapon_PhysCannon.Launch");
 
 #ifndef CLIENT_DLL
-    for (
-        int i = 0;
-        i < ARRAYSIZE(
-            s_pBattleRoyaleWinnerPropModels
-        );
-        i++
-    )
-    {
-        CBaseEntity::PrecacheModel(
-            s_pBattleRoyaleWinnerPropModels[i]
-        );
-    }
+	for (
+		int i = 0;
+		i < ARRAYSIZE(
+				s_pBattleRoyaleWinnerPropModels);
+		i++)
+	{
+		CBaseEntity::PrecacheModel(
+			s_pBattleRoyaleWinnerPropModels[i]);
+	}
 #endif
 }
 
@@ -2035,6 +2914,8 @@ void CHL2MPRules::PrepareBattleRoyalePlayersForRound()
 
 void CHL2MPRules::PrepareBattleRoyalePlayersForWaiting()
 {
+	StopBattleRoyaleZone();
+
 	for (
 		int i = 1;
 		i <= gpGlobals->maxClients;

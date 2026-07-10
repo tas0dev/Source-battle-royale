@@ -248,6 +248,87 @@ CON_COMMAND_F(
     rules->ResetBattleRoyaleRoundForTesting();
 }
 
+CON_COMMAND_F(
+    br_zone_status,
+    "Prints the battle royale zone status",
+    FCVAR_GAMEDLL)
+{
+    CHL2MPRules *rules =
+        HL2MPRules();
+
+    if (!rules)
+    {
+        Warning(
+            "[BR ZONE] Game rules are unavailable\n");
+
+        return;
+    }
+
+    rules->PrintBattleRoyaleZoneStatus();
+}
+
+CON_COMMAND_F(
+    br_test_zone_start,
+    "Starts or restarts the battle royale zone",
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
+{
+    CHL2MPRules *rules =
+        HL2MPRules();
+
+    if (!rules)
+    {
+        Warning(
+            "[BR ZONE] Game rules are unavailable\n");
+
+        return;
+    }
+
+    if (!rules->IsBattleRoyaleRoundActive())
+    {
+        rules->StartBattleRoyaleRound();
+    }
+
+    rules->StartBattleRoyaleZone();
+}
+
+CON_COMMAND_F(
+    br_test_zone_next,
+    "Advances the battle royale zone phase",
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
+{
+    CHL2MPRules *rules =
+        HL2MPRules();
+
+    if (!rules)
+    {
+        Warning(
+            "[BR ZONE] Game rules are unavailable\n");
+
+        return;
+    }
+
+    rules->AdvanceBattleRoyaleZone();
+}
+
+CON_COMMAND_F(
+    br_test_zone_stop,
+    "Stops the battle royale zone",
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
+{
+    CHL2MPRules *rules =
+        HL2MPRules();
+
+    if (!rules)
+    {
+        Warning(
+            "[BR ZONE] Game rules are unavailable\n");
+
+        return;
+    }
+
+    rules->StopBattleRoyaleZone();
+}
+
 ConVar br_winner_crate_count(
     "br_winner_crate_count",
     "40",
@@ -281,20 +362,17 @@ ConVar br_winner_crate_height(
 CON_COMMAND_F(
     br_test_win,
     "Makes the command client win immediately",
-    FCVAR_GAMEDLL | FCVAR_CHEAT
-)
+    FCVAR_GAMEDLL | FCVAR_CHEAT)
 {
     CHL2MP_Player *player =
         ToHL2MPPlayer(
-            UTIL_GetCommandClient()
-        );
+            UTIL_GetCommandClient());
 
-    if ( !player )
+    if (!player)
     {
         Warning(
             "[BR TEST] Run this command "
-            "from a listen-server client\n"
-        );
+            "from a listen-server client\n");
 
         return;
     }
@@ -302,42 +380,36 @@ CON_COMMAND_F(
     CHL2MPRules *rules =
         HL2MPRules();
 
-    if ( !rules )
+    if (!rules)
     {
         Warning(
-            "[BR TEST] Game rules are unavailable\n"
-        );
+            "[BR TEST] Game rules are unavailable\n");
 
         return;
     }
 
     if (
         player->GetTeamNumber() ==
-        TEAM_SPECTATOR
-    )
+        TEAM_SPECTATOR)
     {
         player->ChangeTeam(
-            TEAM_UNASSIGNED
-        );
+            TEAM_UNASSIGNED);
     }
 
     if (
         !rules->IsBattleRoyaleRoundActive() ||
         !player->IsAlive() ||
-        !player->IsBattleRoyaleParticipant()
-    )
+        !player->IsBattleRoyaleParticipant())
     {
         rules->StartBattleRoyaleRound();
     }
 
     Msg(
         "[BR TEST] Forcing %s to win\n",
-        player->GetPlayerName()
-    );
+        player->GetPlayerName());
 
     rules->FinishBattleRoyaleRound(
-        player
-    );
+        player);
 }
 
 ConVar br_winner_prop_batch_size(
@@ -348,8 +420,7 @@ ConVar br_winner_prop_batch_size(
     true,
     1.0f,
     true,
-    64.0f
-);
+    64.0f);
 
 ConVar br_winner_prop_batch_interval(
     "br_winner_prop_batch_interval",
@@ -359,5 +430,86 @@ ConVar br_winner_prop_batch_interval(
     true,
     0.05f,
     true,
-    5.0f
-);
+    5.0f);
+
+ConVar br_zone_enabled(
+    "br_zone_enabled",
+    "1",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Enables the battle royale containment zone");
+
+ConVar br_zone_initial_radius(
+    "br_zone_initial_radius",
+    "2400",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Initial battle royale zone radius",
+    true,
+    64.0f,
+    true,
+    16384.0f);
+
+ConVar br_zone_min_radius(
+    "br_zone_min_radius",
+    "100",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Minimum battle royale zone radius",
+    true,
+    16.0f,
+    true,
+    4096.0f);
+
+ConVar br_zone_phase_count(
+    "br_zone_phase_count",
+    "5",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Total number of battle royale zone phases",
+    true,
+    1.0f,
+    true,
+    16.0f);
+
+ConVar br_zone_phase_time(
+    "br_zone_phase_time",
+    "30",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Seconds between battle royale zone phases",
+    true,
+    1.0f,
+    true,
+    600.0f);
+
+ConVar br_zone_shrink_scale(
+    "br_zone_shrink_scale",
+    "0.55",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Radius multiplier applied during each zone phase",
+    true,
+    0.1f,
+    true,
+    0.95f);
+
+ConVar br_zone_damage(
+    "br_zone_damage",
+    "2",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Damage applied to players outside the zone",
+    true,
+    0.0f,
+    true,
+    1000.0f);
+
+ConVar br_zone_damage_interval(
+    "br_zone_damage_interval",
+    "1.0",
+    FCVAR_GAMEDLL | FCVAR_NOTIFY,
+    "Seconds between zone damage ticks",
+    true,
+    0.1f,
+    true,
+    10.0f);
+
+ConVar br_zone_debug(
+    "br_zone_debug",
+    "1",
+    FCVAR_GAMEDLL | FCVAR_CHEAT,
+    "Draws the battle royale zone boundary");

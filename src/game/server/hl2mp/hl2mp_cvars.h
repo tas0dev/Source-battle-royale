@@ -29,4 +29,14 @@ extern ConVar br_winner_crate_height;
 extern ConVar br_winner_prop_batch_size;
 extern ConVar br_winner_prop_batch_interval;
 
+extern ConVar br_zone_enabled;
+extern ConVar br_zone_initial_radius;
+extern ConVar br_zone_min_radius;
+extern ConVar br_zone_phase_count;
+extern ConVar br_zone_phase_time;
+extern ConVar br_zone_shrink_scale;
+extern ConVar br_zone_damage;
+extern ConVar br_zone_damage_interval;
+extern ConVar br_zone_debug;
+
 #endif
