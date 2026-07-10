@@ -183,27 +183,36 @@ char *sTeamNames[] =
 CHL2MPRules::CHL2MPRules()
 {
 #ifndef CLIENT_DLL
-	// Create the team managers
-	for ( int i = 0; i < ARRAYSIZE( sTeamNames ); i++ )
-	{
-		CTeam *pTeam = static_cast<CTeam*>(CreateEntityByName( "team_manager" ));
-		pTeam->Init( sTeamNames[i], i );
+    for ( int i = 0; i < ARRAYSIZE( sTeamNames ); i++ )
+    {
+        CTeam *pTeam = static_cast<CTeam *>(
+            CreateEntityByName( "team_manager" )
+        );
 
-		g_Teams.AddToTail( pTeam );
-	}
+        pTeam->Init( sTeamNames[i], i );
+        g_Teams.AddToTail( pTeam );
+    }
 
-	m_bTeamPlayEnabled = teamplay.GetBool();
-	m_flIntermissionEndTime = 0.0f;
-	m_flGameStartTime = 0;
+    m_bTeamPlayEnabled = teamplay.GetBool();
 
-	m_hRespawnableItemsAndWeapons.RemoveAll();
-	m_tmNextPeriodicThink = 0;
-	m_flRestartGameTime = 0;
-	m_bCompleteReset = false;
-	m_bHeardAllPlayersReady = false;
-	m_bAwaitingReadyRestart = false;
-	m_bChangelevelDone = false;
+    m_flIntermissionEndTime = 0.0f;
+    m_flGameStartTime = 0.0f;
 
+    m_hRespawnableItemsAndWeapons.RemoveAll();
+
+    m_tmNextPeriodicThink = 0.0f;
+    m_flRestartGameTime = 0.0f;
+
+    m_bCompleteReset = false;
+    m_bHeardAllPlayersReady = false;
+    m_bAwaitingReadyRestart = false;
+    m_bChangelevelDone = false;
+
+    m_eBattleRoyaleState = BR_ROUND_WAITING;
+    m_flBattleRoyaleStateEndTime = 0.0f;
+    m_flBattleRoyaleRoundEndTime = 0.0f;
+    m_iBattleRoyaleStartingPlayers = 0;
+    m_iLastBattleRoyaleCountdownSecond = -1;
 #endif
 }
 
@@ -289,89 +298,366 @@ void CHL2MPRules::PlayerKilled( CBasePlayer *pVictim, const CTakeDamageInfo &inf
 
 void CHL2MPRules::Think( void )
 {
-
 #ifndef CLIENT_DLL
-	
-	CGameRules::Think();
+    CGameRules::Think();
 
-	if ( g_fGameOver )   // someone else quit the game already
-	{
-		// check to see if we should change levels now
-		if ( m_flIntermissionEndTime < gpGlobals->curtime )
-		{
-			if ( !m_bChangelevelDone )
-			{
-				ChangeLevel(); // intermission is over
-				m_bChangelevelDone = true;
-			}
-		}
+    if ( g_fGameOver )
+    {
+        if (
+            m_flIntermissionEndTime < gpGlobals->curtime &&
+            !m_bChangelevelDone
+        )
+        {
+            ChangeLevel();
+            m_bChangelevelDone = true;
+        }
 
-		return;
-	}
+        return;
+    }
 
-//	float flTimeLimit = mp_timelimit.GetFloat() * 60;
-	float flFragLimit = fraglimit.GetFloat();
-	
-	if ( GetMapRemainingTime() < 0 )
-	{
-		GoToIntermission();
-		return;
-	}
-
-	if ( flFragLimit )
-	{
-		if( IsTeamplay() == true )
-		{
-			CTeam *pCombine = g_Teams[TEAM_COMBINE];
-			CTeam *pRebels = g_Teams[TEAM_REBELS];
-
-			if ( pCombine->GetScore() >= flFragLimit || pRebels->GetScore() >= flFragLimit )
-			{
-				GoToIntermission();
-				return;
-			}
-		}
-		else
-		{
-			// check if any player is over the frag limit
-			for ( int i = 1; i <= gpGlobals->maxClients; i++ )
-			{
-				CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
-
-				if ( pPlayer && pPlayer->FragCount() >= flFragLimit )
-				{
-					GoToIntermission();
-					return;
-				}
-			}
-		}
-	}
-
-	if ( gpGlobals->curtime > m_tmNextPeriodicThink )
-	{		
-		CheckAllPlayersReady();
-		CheckRestartGame();
-		m_tmNextPeriodicThink = gpGlobals->curtime + 1.0;
-	}
-
-	if ( m_flRestartGameTime > 0.0f && m_flRestartGameTime <= gpGlobals->curtime )
-	{
-		RestartGame();
-	}
-
-	if( m_bAwaitingReadyRestart && m_bHeardAllPlayersReady )
-	{
-		UTIL_ClientPrintAll( HUD_PRINTCENTER, "All players ready. Game will restart in 5 seconds" );
-		UTIL_ClientPrintAll( HUD_PRINTCONSOLE, "All players ready. Game will restart in 5 seconds" );
-
-		m_flRestartGameTime = gpGlobals->curtime + 5;
-		m_bAwaitingReadyRestart = false;
-	}
-
-	ManageObjectRelocation();
-
+    UpdateBattleRoyaleRound();
+    ManageObjectRelocation();
 #endif
 }
+
+#ifndef CLIENT_DLL
+
+int CHL2MPRules::GetBattleRoyalePlayerCount() const
+{
+    int playerCount = 0;
+
+    for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+    {
+        CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+
+        if ( !pPlayer )
+        {
+            continue;
+        }
+
+        if ( !pPlayer->IsConnected() )
+        {
+            continue;
+        }
+
+        if ( pPlayer->GetTeamNumber() == TEAM_SPECTATOR )
+        {
+            continue;
+        }
+
+        playerCount++;
+    }
+
+    return playerCount;
+}
+
+int CHL2MPRules::GetBattleRoyaleAliveCount(
+    CBasePlayer **ppLastAlive
+) const
+{
+    int aliveCount = 0;
+
+    if ( ppLastAlive )
+    {
+        *ppLastAlive = NULL;
+    }
+
+    for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+    {
+        CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+
+        if ( !pPlayer )
+        {
+            continue;
+        }
+
+        if ( !pPlayer->IsConnected() )
+        {
+            continue;
+        }
+
+        if ( pPlayer->GetTeamNumber() == TEAM_SPECTATOR )
+        {
+            continue;
+        }
+
+        if ( !pPlayer->IsAlive() )
+        {
+            continue;
+        }
+
+        aliveCount++;
+
+        if ( ppLastAlive )
+        {
+            *ppLastAlive = pPlayer;
+        }
+    }
+
+    return aliveCount;
+}
+
+void CHL2MPRules::FreezeBattleRoyalePlayers( bool bFrozen )
+{
+    for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+    {
+        CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+
+        if ( !pPlayer )
+        {
+            continue;
+        }
+
+        if ( bFrozen )
+        {
+            pPlayer->AddFlag( FL_FROZEN );
+        }
+        else
+        {
+            pPlayer->RemoveFlag( FL_FROZEN );
+        }
+    }
+}
+
+void CHL2MPRules::EnterBattleRoyaleWaiting()
+{
+    m_eBattleRoyaleState = BR_ROUND_WAITING;
+    m_flBattleRoyaleStateEndTime = 0.0f;
+    m_flBattleRoyaleRoundEndTime = 0.0f;
+    m_iBattleRoyaleStartingPlayers = 0;
+    m_iLastBattleRoyaleCountdownSecond = -1;
+
+    FreezeBattleRoyalePlayers( true );
+
+    UTIL_ClientPrintAll(
+        HUD_PRINTCENTER,
+        "Waiting for players"
+    );
+
+    Msg( "[BR] Waiting for players\n" );
+}
+
+void CHL2MPRules::StartBattleRoyaleCountdown()
+{
+    m_eBattleRoyaleState = BR_ROUND_COUNTDOWN;
+    m_flBattleRoyaleStateEndTime =
+        gpGlobals->curtime + br_countdown_time.GetFloat();
+
+    m_iLastBattleRoyaleCountdownSecond = -1;
+
+    FreezeBattleRoyalePlayers( true );
+
+    Msg(
+        "[BR] Round starts in %.0f seconds\n",
+        br_countdown_time.GetFloat()
+    );
+}
+
+void CHL2MPRules::StartBattleRoyaleRound()
+{
+    RestartGame();
+
+    m_eBattleRoyaleState = BR_ROUND_ACTIVE;
+    m_flBattleRoyaleStateEndTime = 0.0f;
+    m_flBattleRoyaleRoundEndTime =
+        gpGlobals->curtime + br_round_time.GetFloat();
+
+    m_iBattleRoyaleStartingPlayers =
+        GetBattleRoyalePlayerCount();
+
+    m_iLastBattleRoyaleCountdownSecond = -1;
+
+    FreezeBattleRoyalePlayers( false );
+
+    UTIL_ClientPrintAll(
+        HUD_PRINTCENTER,
+        "Battle started"
+    );
+
+    Msg(
+        "[BR] Round started with %d player(s)\n",
+        m_iBattleRoyaleStartingPlayers
+    );
+}
+
+void CHL2MPRules::FinishBattleRoyaleRound(
+    CBasePlayer *pWinner
+)
+{
+    m_eBattleRoyaleState = BR_ROUND_FINISHED;
+    m_flBattleRoyaleStateEndTime =
+        gpGlobals->curtime + br_restart_time.GetFloat();
+
+    FreezeBattleRoyalePlayers( true );
+
+    if ( pWinner )
+    {
+        char message[256];
+
+        Q_snprintf(
+            message,
+            sizeof( message ),
+            "%s wins",
+            pWinner->GetPlayerName()
+        );
+
+        UTIL_ClientPrintAll(
+            HUD_PRINTCENTER,
+            message
+        );
+
+        Msg(
+            "[BR] %s wins\n",
+            pWinner->GetPlayerName()
+        );
+    }
+    else
+    {
+        UTIL_ClientPrintAll(
+            HUD_PRINTCENTER,
+            "Round ended"
+        );
+
+        Msg( "[BR] Round ended without a winner\n" );
+    }
+}
+
+void CHL2MPRules::UpdateBattleRoyaleRound()
+{
+    const int playerCount =
+        GetBattleRoyalePlayerCount();
+
+    switch ( m_eBattleRoyaleState )
+    {
+        case BR_ROUND_WAITING:
+        {
+            FreezeBattleRoyalePlayers( true );
+
+            if ( playerCount >= br_min_players.GetInt() )
+            {
+                StartBattleRoyaleCountdown();
+            }
+
+            break;
+        }
+
+        case BR_ROUND_COUNTDOWN:
+        {
+            FreezeBattleRoyalePlayers( true );
+
+            if ( playerCount < br_min_players.GetInt() )
+            {
+                EnterBattleRoyaleWaiting();
+                break;
+            }
+
+            const float timeRemaining =
+                m_flBattleRoyaleStateEndTime -
+                gpGlobals->curtime;
+
+            if ( timeRemaining <= 0.0f )
+            {
+                StartBattleRoyaleRound();
+                break;
+            }
+
+            const int secondsRemaining =
+                static_cast<int>( timeRemaining ) + 1;
+
+            if (
+                secondsRemaining !=
+                m_iLastBattleRoyaleCountdownSecond
+            )
+            {
+                m_iLastBattleRoyaleCountdownSecond =
+                    secondsRemaining;
+
+                char message[64];
+
+                Q_snprintf(
+                    message,
+                    sizeof( message ),
+                    "Round starts in %d",
+                    secondsRemaining
+                );
+
+                UTIL_ClientPrintAll(
+                    HUD_PRINTCENTER,
+                    message
+                );
+
+                Msg(
+                    "[BR] Round starts in %d\n",
+                    secondsRemaining
+                );
+            }
+
+            break;
+        }
+
+        case BR_ROUND_ACTIVE:
+        {
+            if (
+                gpGlobals->curtime >=
+                m_flBattleRoyaleRoundEndTime
+            )
+            {
+                FinishBattleRoyaleRound( NULL );
+                break;
+            }
+
+            CBasePlayer *pLastAlive = NULL;
+
+            const int aliveCount =
+                GetBattleRoyaleAliveCount(
+                    &pLastAlive
+                );
+
+            if (
+                m_iBattleRoyaleStartingPlayers >= 2 &&
+                aliveCount <= 1
+            )
+            {
+                FinishBattleRoyaleRound( pLastAlive );
+            }
+
+            break;
+        }
+
+        case BR_ROUND_FINISHED:
+        {
+            FreezeBattleRoyalePlayers( true );
+
+            if (
+                gpGlobals->curtime >=
+                m_flBattleRoyaleStateEndTime
+            )
+            {
+                RestartGame();
+                EnterBattleRoyaleWaiting();
+            }
+
+            break;
+        }
+    }
+}
+
+bool CHL2MPRules::FPlayerCanRespawn(
+    CBasePlayer *pPlayer
+)
+{
+    if (
+        m_eBattleRoyaleState == BR_ROUND_ACTIVE ||
+        m_eBattleRoyaleState == BR_ROUND_FINISHED
+    )
+    {
+        return false;
+    }
+
+    return BaseClass::FPlayerCanRespawn( pPlayer );
+}
+
+#endif
 
 void CHL2MPRules::GoToIntermission( void )
 {
@@ -834,12 +1120,9 @@ int CHL2MPRules::PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget 
 }
 
 const char *CHL2MPRules::GetGameDescription( void )
-{ 
-	if ( IsTeamplay() )
-		return "Team Deathmatch"; 
-
-	return "Deathmatch"; 
-} 
+{
+    return "Battle Royale";
+}
 
 bool CHL2MPRules::IsConnectedUserInfoChangeAllowed( CBasePlayer *pPlayer )
 {

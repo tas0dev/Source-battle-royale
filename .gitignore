@@ -502,3 +502,25 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Local editor configuration
+.vscode/settings.json
+
+# Ninja build state
+.ninja_deps
+.ninja_log
+compile_commands.json
+
+# Linux build outputs
+*_linux64
+src/lib/public/linux64/*.a
+
+# Steam launch state
+steam_appid.txt
+
+# Source runtime files
+game/*/cfg/server_blacklist.txt
+game/*/maps/graphs/*.ain
+game/*/stats.txt
+game/*/videoconfig*.cfg
+game/*/voice_ban.dt
